@@ -1,111 +1,9 @@
-#include <boost/bind.hpp>
-#include <gazebo/gazebo.hh>
-#include <gazebo/physics/physics.hh>
-#include <gazebo/common/common.hh>
-#include <stdio.h>
-
-#include <gazebo/rendering/Scene.hh>
-#include <boost/shared_ptr.hpp>
-#include <gazebo/msgs/msgs.hh>
-
-#include <sensor_msgs/Joy.h>
-
-#include <gazebo/rendering/OculusCamera.hh>
-#include <gazebo/rendering/RenderEngine.hh>
-#include <gazebo/rendering/RenderingIface.hh>
-#include <gazebo/rendering/Scene.hh>
-#include <gazebo/rendering/Visual.hh>
-#include <gazebo/rendering/WindowManager.hh>
-#include <gazebo/rendering/OculusCamera.hh>
-
-#include <gazebo/transport/transport.hh>
-#include <gazebo/transport/Node.hh>
-#include <gazebo/transport/TransportIface.hh>
-
-#include <ros/ros.h>
-#include <geometry_msgs/Twist.h>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
-
-#include <tf/tf.h>
-#include <tf/transform_listener.h>
-
-// FPV Constants
-#define WALKING_SPEED_X 2.0 // in m/s
-#define WALKING_SPEED_Y 1.5
-
-#define RUNNING_SPEED_X 4.0
-#define RUNNING_SPEED_Y 3.0
-
-#define VERTICAL_SPEED 1.0
-#define CEILING_HEIGHT 40.0 // in meters
-#define FLOOR_HEIGHT 2.52
-
-// Bot-Control Constants
-#define BOT_MODEL_NAME "youbot"
-#define BOT_CMD_TOPIC_NAME "/youbot/cmd_vel"
-#define NORMAL_LINEAR_SPEED 0.4 // in m/s
-#define NORMAL_ANGULAR_SPEED 0.785 // in rad/s
-
-#define FAST_LINEAR_SPEED 1.1
-#define FAST_ANGULAR_SPEED  1.60 
-
-// Buttons:
-#define SELECT 0
-
-#define LEFT_JOY 1
-#define RIGHT_JOY 2
-#define START 3
-
-#define UP 4
-#define RIGHT 5
-#define DOWN 6
-#define LEFT 7
-
-#define LEFT_REAR_TAP 8
-#define RIGHT_REAR_TAP 9
-#define LEFT_FORWARD_TAP 10
-#define RIGHT_FORWARD_TAP 11
-
-#define TRIANGLE 12
-#define CIRCLE 13
-#define CROSS 14
-#define SQUARE 15
-
-// Assigned functions:
-#define XRAY_BTN CROSS
-#define COLLISION_BTN SQUARE
-#define GRAVITY_BTN TRIANGLE
-
-#define BOT_CONTROL_BTN SELECT
-#define BOT_RESET_BTN START
-#define BOT_CALIBRATE_BTN START
-
-#define HOVER_UP_BTN RIGHT_FORWARD_TAP
-#define HOVER_DOWN_BTN LEFT_FORWARD_TAP
-#define HOVER_STEADY_BTN RIGHT_REAR_TAP
-
-// Programmable service function:
-#define SERVICE_UP_BTN UP
-#define SERVICE_DOWN_BTN DOWN
-#define SERVICE_LEFT_BTN LEFT
-#define SERVICE_RIGHT_BTN RIGHT
-
-#define REQUEST_UP_BTN "up_btn"
-#define REQUEST_DOWN_BTN "down_btn"
-#define REQUEST_RIGHT_BTN "right_btn"
-#define REQUEST_LEFT_BTN "left_btn"
-
-#define ROS_RATE 10.0
+#include "ps3_teleop_plugin.h"
 
 namespace gazebo
 {   
-  
-  typedef const boost::shared_ptr<const msgs::Quaternion> QuaternionPtr;
 
-  class OculusGazeboNavigator : public ModelPlugin
-  {
-
-    public: OculusGazeboNavigator()
+    OculusGazeboNavigator::OculusGazeboNavigator()
     {
       std::string name = "oculus_gazebo_navigator";
       int argc = 0;
@@ -113,68 +11,68 @@ namespace gazebo
 
     }
 
-    public: ~OculusGazeboNavigator()
+    OculusGazeboNavigator::~OculusGazeboNavigator()
     {
       delete this->rosNode;
       transport::fini();
     }
 
-    public: void Load(physics::ModelPtr _parent, sdf::ElementPtr)
+    void OculusGazeboNavigator::Load(physics::ModelPtr _parent, sdf::ElementPtr)
     {
-    	establishLinks(_parent);
-    	setupHMDSubscription();
+        establishLinks(_parent);
+        setupHMDSubscription();
         initVars();
     }
 
-    private: void initVars()
+    void OculusGazeboNavigator::initVars()
     {
         this->isGravityEnabled = true;
         this->isCollisionEnabled = true;
         this->isXrayVisionEnabled = false;
         this->isBotIsoControlEnabled = false;
-        this->isBotTfListenerControlEnabled = false;
+        this->isBotTfListenerControlEnabled = true;
 
         this->botOffsetPose = this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->GetWorldPose();
 
         ros::Rate rate(ROS_RATE);
     }
 
-    private: void setupHMDSubscription()
+    void OculusGazeboNavigator::setupHMDSubscription()
     {
         this->gazeboNode = transport::NodePtr(new transport::Node());
         this->gazeboNode->Init();
 
-  		this->hmdSub = this->gazeboNode->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
+        this->hmdSub = this->gazeboNode->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
         this->pubFpvPose = this->gazeboNode->Advertise<msgs::Pose>("~/oculus/fpvPose");
 
     }
 
-    private: void GzHMDCallback(QuaternionPtr &msg)
+    void OculusGazeboNavigator::GzHMDCallback(QuaternionPtr &msg)
     {
-    	headOrientation = msgs::Convert(*msg);
+        headOrientation = msgs::Convert(*msg);
     }
 
-    private: void establishLinks(physics::ModelPtr _parent)
+    void OculusGazeboNavigator::establishLinks(physics::ModelPtr _parent)
     {
-    	this->model = _parent;
-    	this->bodyLink = this->model->GetLink("body");
+        this->model = _parent;
+        this->bodyLink = this->model->GetLink("body");
 
-    	this->rosNode = new ros::NodeHandle("/joy0");
-    	this->sub_twist = this->rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ROSCallbackJoy, this);
+        this->rosNode = new ros::NodeHandle("/joy0");
+        this->sub_twist = this->rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ROSCallbackJoy, this);
         this->pub_cmd_vel = this->rosNode->advertise<geometry_msgs::Twist>(BOT_CMD_TOPIC_NAME, 50);
 
-      	this->updateConnection = event::Events::ConnectWorldUpdateBegin(
+        this->updateConnection = event::Events::ConnectWorldUpdateBegin(
         boost::bind(&OculusGazeboNavigator::OnUpdate, this));
     }
 
-    public: void OnUpdate()
+    void OculusGazeboNavigator::OnUpdate()
     {
-    	ros::spinOnce();
-    	updateVel();
+        ros::spinOnce();
+        updateVel();
         stabilize();
     }
 
-    private: void updateVel()
+    void OculusGazeboNavigator::updateVel()
     {
         //Bot control: TF Listener:
         if (this->isBotTfListenerControlEnabled) {
@@ -193,7 +91,7 @@ namespace gazebo
     }
 
     // Dual controls: FPV & Bot-control (Left joystick -> FPV | Right joystick -> Bot-control)
-    private: void updateBotVel()
+    void OculusGazeboNavigator::updateBotVel()
     {
         if (!currBtn[RIGHT_REAR_TAP]) { // linear controls
 
@@ -222,7 +120,7 @@ namespace gazebo
     }
 
     // Isolated Mode: Bot-control (Left joystick -> x,y axis | Right joystick -> yaw)
-    private: void updateBotVelIsolated()
+    void OculusGazeboNavigator::updateBotVelIsolated()
     {
         // Mimic "Mecanum wheels" effect:
         if (fabs(stickLeftY) > fabs(stickLeftX)) {
@@ -241,7 +139,7 @@ namespace gazebo
     }
 
     // TF Listener Mode: Bot World-Pose controlled directly via a TF Listener
-    private: void updateBotVelListener()
+    void OculusGazeboNavigator::updateBotVelListener()
     {
         bool wasLookUpSuccessful = lookupTfListener();
 
@@ -249,7 +147,7 @@ namespace gazebo
             return;
         } 
 
-        math::Pose newBotPose = transformTo3DOFPose(transform);
+        math::Pose newBotPose = transformTo3DOFPoseRotated(transform);
 
         newBotPose.pos.x -= botOffsetPose.pos.x;
         newBotPose.pos.y -= botOffsetPose.pos.y;
@@ -258,7 +156,7 @@ namespace gazebo
         this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->SetWorldPose(newBotPose);
     }
 
-    private: void calibrateBot()
+    void OculusGazeboNavigator::calibrateBot()
     {
         bool wasLookUpSuccessful = lookupTfListener();
 
@@ -267,7 +165,7 @@ namespace gazebo
             return;
         }
 
-        math::Pose realBotPose = transformTo3DOFPose(transform);
+        math::Pose realBotPose = transformTo3DOFPoseRotated(transform);
         math::Pose virtualBotPose = this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->GetWorldPose();
 
         botOffsetPose.pos.x = realBotPose.pos.x - virtualBotPose.pos.x;
@@ -277,25 +175,40 @@ namespace gazebo
         printf("Oculus Navigator: New bot-offset pose – x: %f, y: %f, z: %f, roll: %f, pitch: %f, yaw: %f\n-----------------\n", botOffsetPose.pos.x, botOffsetPose.pos.y, botOffsetPose.pos.z, botOffsetPose.rot.x, botOffsetPose.rot.y, botOffsetPose.rot.z);            
     }   
 
-    private: math::Pose transformTo3DOFPose(tf::StampedTransform trans)
+    math::Pose OculusGazeboNavigator::transformTo3DOFPoseRotated(tf::StampedTransform trans)
     {
-        tf::Quaternion quatTf;
-        double roll, pitch, yaw;
+        tf::Quaternion quatTf = trans.getRotation();
+        math::Quaternion quatGz = tfToGzQuat(quatTf);
 
-        tf::Matrix3x3(trans.getRotation()).getRPY(roll, pitch, yaw);
+        double roll, pitch, yaw;
+        tf::Matrix3x3(quatTf).getRPY(roll, pitch, yaw);
 
         math::Pose newPose;
 
         newPose.pos.x = trans.getOrigin().x();
         newPose.pos.y = trans.getOrigin().y();
-        newPose.pos.z = botOffsetPose.pos.z;
-
         newPose.rot.z = yaw;
+
+        // Rotate translation vector according to yaw:
+        // newPose.pos = quatGz.RotateVector(newPose.pos);
+        newPose.pos.z = botOffsetPose.pos.z;
 
         return newPose;        
     }
 
-    private: bool lookupTfListener()
+    math::Quaternion OculusGazeboNavigator::tfToGzQuat(tf::Quaternion quatTf)
+    {
+        math::Quaternion quatGz;
+
+        quatGz.x = quatTf.x();
+        quatGz.y = quatTf.y();
+        quatGz.z = quatTf.z();
+        quatGz.w = quatTf.w();
+
+        return quatGz;
+    }
+
+    bool OculusGazeboNavigator::lookupTfListener()
     {
         try {
             tfListener.lookupTransform("map", "base_link", ros::Time(0), transform);
@@ -308,7 +221,7 @@ namespace gazebo
         return true;
     }
 
-    private: void updateToggleStates()
+    void OculusGazeboNavigator::updateToggleStates()
     {
         // Toggle TF-Listener mode & Joystick bot-control:
 
@@ -378,28 +291,28 @@ namespace gazebo
 
     }
 
-    private: void resetBot()
+    void OculusGazeboNavigator::resetBot()
     {
         this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->SetWorldPose(botOffsetPose);
     }
 
-    private: void toggleBotIsoControlMode()
+    void OculusGazeboNavigator::toggleBotIsoControlMode()
     {
         isBotIsoControlEnabled = !isBotIsoControlEnabled;
     }
 
-    private: void toggleBotTfListenerControlMode()
+    void OculusGazeboNavigator::toggleBotTfListenerControlMode()
     {
         isBotTfListenerControlEnabled = !isBotTfListenerControlEnabled;
     }
 
-    private: void toggleGravityMode()
+    void OculusGazeboNavigator::toggleGravityMode()
     {
         isGravityEnabled = !isGravityEnabled;
         this->model->SetGravityMode(isGravityEnabled);
     }
 
-    private: float computeHoverVelocity(float currVerticalVel)
+    float OculusGazeboNavigator::computeHoverVelocity(float currVerticalVel)
     {
         if (!isGravityEnabled) {
             if (currBtn[HOVER_DOWN_BTN]) {
@@ -414,7 +327,7 @@ namespace gazebo
         return currVerticalVel;
     }
 
-    private: void toggleCollisionMode()
+    void OculusGazeboNavigator::toggleCollisionMode()
     {
         isCollisionEnabled = !isCollisionEnabled;
 
@@ -426,7 +339,7 @@ namespace gazebo
 
     }
 
-    private: void toggleXrayMode()
+    void OculusGazeboNavigator::toggleXrayMode()
     {
         isXrayVisionEnabled = !isXrayVisionEnabled;
 
@@ -437,7 +350,7 @@ namespace gazebo
         }
     }
 
-    private: bool wasActivated(uint btnRef)
+    bool OculusGazeboNavigator::wasActivated(uint btnRef)
     {
         // Register 'state changes' only
         if (prevBtn[btnRef] != currBtn[btnRef] && currBtn[btnRef] == true) {
@@ -447,18 +360,18 @@ namespace gazebo
         return false;
     }
 
-    private: void updateFpvVel()
-    {	
-    	math::Vector3 currLinearVel = this->bodyLink->GetRelativeLinearVel();
+    void OculusGazeboNavigator::updateFpvVel()
+    {   
+        math::Vector3 currLinearVel = this->bodyLink->GetRelativeLinearVel();
         math::Vector3 newLinearVel = computeVelocities(currLinearVel);
 
         currLinearVel = constrainVerticalMovement(currLinearVel);
         currLinearVel.z = computeHoverVelocity(currLinearVel.z);
 
-    	this->bodyLink->SetLinearVel(math::Vector3(newLinearVel.x, newLinearVel.y, currLinearVel.z));
+        this->bodyLink->SetLinearVel(math::Vector3(newLinearVel.x, newLinearVel.y, currLinearVel.z));
     }
 
-    private: math::Vector3 constrainVerticalMovement(math::Vector3 currLinearVel)
+    math::Vector3 OculusGazeboNavigator::constrainVerticalMovement(math::Vector3 currLinearVel)
     { 
 
         if (isStrayVerticalVel(currLinearVel)) {
@@ -468,12 +381,12 @@ namespace gazebo
         return currLinearVel;
     }
 
-    private: bool isStrayVerticalVel(math::Vector3 currLinearVel)
+    bool OculusGazeboNavigator::isStrayVerticalVel(math::Vector3 currLinearVel)
     {
         return (currLinearVel.z > 0.0 && (fabs(currLinearVel.x) > (currBtn[LEFT_REAR_TAP] ? RUNNING_SPEED_X/2 : WALKING_SPEED_X/2) || fabs(currLinearVel.y) > (currBtn[LEFT_REAR_TAP] ? RUNNING_SPEED_Y/2 : WALKING_SPEED_Y/2))) && isGravityEnabled;
     }
 
-    private: math::Vector3 computeVelocities(math::Vector3 currLinearVel)
+    math::Vector3 OculusGazeboNavigator::computeVelocities(math::Vector3 currLinearVel)
     {
         // Gazebo's coordinate system is flipped:
         cmd_linear_vel.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? RUNNING_SPEED_X : WALKING_SPEED_X); 
@@ -487,13 +400,13 @@ namespace gazebo
         return newLinearVel;
     }
 
-    private: void stabilize()
+    void OculusGazeboNavigator::stabilize()
     {
-    	math::Pose currPose = this->model->GetWorldPose();
-    	math::Vector3 currPosition = currPose.pos;
+        math::Pose currPose = this->model->GetWorldPose();
+        math::Vector3 currPosition = currPose.pos;
 
-    	math::Pose stabilizedPose;
-    	stabilizedPose.pos = currPosition;
+        math::Pose stabilizedPose;
+        stabilizedPose.pos = currPosition;
 
         if (!isGravityEnabled && currPosition.z > CEILING_HEIGHT) {
             stabilizedPose.pos.z = CEILING_HEIGHT;
@@ -501,15 +414,15 @@ namespace gazebo
             stabilizedPose.pos.z = FLOOR_HEIGHT;
         }
 
-    	stabilizedPose.rot.x = 0;
-    	stabilizedPose.rot.y = 0;
+        stabilizedPose.rot.x = 0;
+        stabilizedPose.rot.y = 0;
 
-    	stabilizedPose.rot.z = currPose.rot.z;
+        stabilizedPose.rot.z = currPose.rot.z;
 
-    	this->model->SetWorldPose(stabilizedPose);    
+        this->model->SetWorldPose(stabilizedPose);    
     }  
 
-    private: void updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg)
+    void OculusGazeboNavigator::updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg)
     {
 
         prevBtn[SELECT] = currBtn[SELECT];
@@ -562,7 +475,7 @@ namespace gazebo
 
     }     
 
-    private: void ROSCallbackJoy(const sensor_msgs::Joy::ConstPtr& msg)
+    void OculusGazeboNavigator::ROSCallbackJoy(const sensor_msgs::Joy::ConstPtr& msg)
     {
         // Get joystick states:
         stickLeftX = msg->axes[0];
@@ -574,37 +487,4 @@ namespace gazebo
         updateToggleStates();
     }
 
-    private: physics::ModelPtr model;
-    private: physics::LinkPtr bodyLink;
-
-    // private: rendering::OculusCameraPtr oculusCamera;
-
-    private: ros::NodeHandle* rosNode;
-    private: transport::NodePtr gazeboNode;
-    private: ros::Subscriber sub_twist;
-    private: ros::Publisher pub_cmd_vel;
-
-    private: tf::TransformListener tfListener;
-    private: tf::StampedTransform transform;
-
-    private: transport::SubscriberPtr hmdSub;
-    private: transport::PublisherPtr pubFpvPose;
-
-    private: math::Vector3 cmd_linear_vel, cmd_hovering_vel;
-    private: geometry_msgs::Twist bot_cmd_vel;
-    private: math::Pose botOffsetPose;
-    private: math::Quaternion headOrientation;
-
-   	private: event::ConnectionPtr updateConnection;
-
-    // PS3 Dual-shock controller buttons and joysticks:
-    private: float stickRightX, stickRightY, stickLeftX, stickLeftY;
-    private: bool currBtn[16], prevBtn[16];
-
-    // World States:
-    private: bool isGravityEnabled, isCollisionEnabled, isXrayVisionEnabled, isBotIsoControlEnabled, isBotTfListenerControlEnabled;
-
-  };
-
-  GZ_REGISTER_MODEL_PLUGIN(OculusGazeboNavigator)
 }
