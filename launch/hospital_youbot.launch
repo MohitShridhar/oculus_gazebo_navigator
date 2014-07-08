@@ -1,0 +1,268 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+  <arg name="paused" default="true"/>
+
+  <!-- Empty world: spawn sun and ground plane -->
+  <include file="$(find oculus_gazebo_navigator)/launch/empty_world.launch">
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+    <arg name="world_name" value="$(find oculus_gazebo_navigator)/worlds/empty.world"/>
+  </include>
+
+  <!-- Flip open doors (controlled using door_controller) -->
+  <param name="spawn_door_1" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/door1.sdf" />
+
+  <param name="spawn_door_2" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/door2.sdf" />
+
+  <param name="spawn_door_3" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/door3.sdf" />
+
+  <param name="spawn_door_4" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/door4.sdf" />
+
+
+  <!-- Elevators -->
+  <param name="spawn_elevator_1" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/elevator.sdf" />
+
+  <param name="spawn_elevator_2" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/elevator.sdf" />
+
+
+  <!-- Hospital - Wall structure -->
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_world_model" args="-sdf -param world_description -model world -x 1.0 -y 0.0 -z 2.2" respawn="false" output="screen" />  
+
+
+  <!-- Elevator Sliding Doors -->
+
+  <param name="spawn_door_5" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_6" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+
+  <!-- ! Sliding doors (A, B) for F1,F2,F3,F4,F5. Uncomment if needed -->
+
+ <!--  <param name="spawn_door_7" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_8" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_9" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_10" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_11" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_12" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_13" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_14" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_15" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_16" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+ -->
+
+   <!-- ! Sliding doors (C, D) for F1,F2,F3,F4,F5. Uncomment if needed -->
+<!-- 
+  <param name="spawn_door_27" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_28" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_29" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_30" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_31" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_32" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_33" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_34" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_35" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_36" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> -->
+
+
+  <param name="spawn_door_17" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_18" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_19" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_20" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_21" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_22" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_23" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_24" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+  <param name="spawn_door_25" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_left.sdf" /> 
+
+  <param name="spawn_door_26" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/slide_right.sdf" /> 
+
+
+  <!-- ||IMPORTANT|| All door 'model' names tags should follow the convention -->
+
+  <!-- Flip-open Doors -->
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door1" args="-sdf -param spawn_door_1 -model door1 -x -18.806293 -y 4.678486 -z 1.92" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door2" args="-sdf -param spawn_door_2 -model door2 -x -17.452321 -y 5.078486 -z 1.92" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door3" args="-sdf -param spawn_door_3 -model door3 -x 31.246523 -y 4.897905 -z 1.92" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door4" args="-sdf -param spawn_door_4 -model door4 -x 29.977876 -y 5.298710 -z 1.92" respawn="false" output="screen">
+  </node>
+
+  <!-- Elevators -->
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_elevator1" args="-sdf -param spawn_elevator_1 -model elevator1 -x 9.402078 -y 16.611233 -z 21.65369" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_elevator2" args="-sdf -param spawn_elevator_2 -model elevator2 -x 9.356054 -y 12.938729 -z 21.65369" respawn="false" output="screen">
+  </node>
+
+  <!-- Elevator Sliding Doors: -->
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door5" args="-sdf -param spawn_door_5 -model doorF6A -x -2.984057 -y 10.433580 -z 20.6549995 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door6" args="-sdf -param spawn_door_6 -model doorF6B -x -2.984057 -y 9.626275 -z 20.6549995 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <!-- Sliding doors (A, B) for F1 to F5 (uncomment if needed) -->
+
+  <!-- <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door7" args="-sdf -param spawn_door_7 -model doorF5A -x -2.984057 -y 10.433580 -z 17.4604595 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door8" args="-sdf -param spawn_door_8 -model doorF5B -x -2.984057 -y 9.626275 -z 17.4604595 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door9" args="-sdf -param spawn_door_9 -model doorF4A -x -2.984057 -y 10.433580 -z 14.2467995 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door10" args="-sdf -param spawn_door_10 -model doorF4B -x -2.984057 -y 9.626275 -z 14.2467995 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door11" args="-sdf -param spawn_door_11 -model doorF3A -x -2.984057 -y 10.433580 -z 11.0483095 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door12" args="-sdf -param spawn_door_12 -model doorF3B -x -2.984057 -y 9.626275 -z 11.0483095 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door13" args="-sdf -param spawn_door_13 -model doorF2A -x -2.984057 -y 10.433580 -z 7.8519695 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door14" args="-sdf -param spawn_door_14 -model doorF2B -x -2.984057 -y 9.626275 -z 7.8519695 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door15" args="-sdf -param spawn_door_15 -model doorF1A -x -2.984057 -y 10.433580 -z 4.6559195 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door16" args="-sdf -param spawn_door_16 -model doorF1B -x -2.984057 -y 9.626275 -z 4.6559195 -wait elevator1" respawn="false" output="screen">
+  </node> -->
+
+
+
+  <!-- Sliding doors (C, D) for F1 to F5 (uncomment if needed) -->
+
+<!--   <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door27" args="-sdf -param spawn_door_27 -model doorF5C -x -2.884057 -y 6.78128 -z 17.4604595  -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door28" args="-sdf -param spawn_door_28 -model doorF5D -x -2.884057 -y 5.973975 -z 17.4604595 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door29" args="-sdf -param spawn_door_29 -model doorF4C -x -2.884057 -y 6.78128 -z 14.2467995 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door30" args="-sdf -param spawn_door_30 -model doorF4D -x -2.884057 -y 5.973975 -z 14.2467995 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door31" args="-sdf -param spawn_door_31 -model doorF3C -x -2.884057 -y 6.78128 -z 11.0483095 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door32" args="-sdf -param spawn_door_32 -model doorF3D -x -2.884057 -y 5.973975 -z 11.0483095 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door33" args="-sdf -param spawn_door_33 -model doorF2C -x -2.884057 -y 6.78128 -z 7.8519695 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door34" args="-sdf -param spawn_door_34 -model doorF2D -x -2.884057 -y 5.973975 -z 7.8519695 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door35" args="-sdf -param spawn_door_35 -model doorF1C -x -2.884057 -y 6.78128 -z 4.6559195 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door36" args="-sdf -param spawn_door_36 -model doorF1D -x -2.884057 -y 5.973975 -z 4.6559195 -wait elevator2" respawn="false" output="screen">
+  </node> 
+ -->
+
+
+ <!-- Other sliding doors for F0 and F6 -->
+ 
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door17" args="-sdf -param spawn_door_17 -model doorF0A -x -2.984057 -y 10.433580 -z 1.8423895 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door18" args="-sdf -param spawn_door_18 -model doorF0B -x -2.984057 -y 9.626275 -z 1.8423895 -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door19" args="-sdf -param spawn_door_19 -model doorF6C -x -2.884057 -y 6.78128 -z 20.6549995 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door20" args="-sdf -param spawn_door_20 -model doorF6D -x -2.884057 -y 5.973975 -z 20.6549995 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door21" args="-sdf -param spawn_door_21 -model doorF0C -x -2.884057 -y 6.86128 -z 1.8423895 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door22" args="-sdf -param spawn_door_22 -model doorF0D -x -2.884057 -y 6.053975 -z 1.8423895 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door23" args="-sdf -param spawn_door_23 -model doorF0E -x 0.180682 -y 10.433580 -z 1.8423895  -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door24" args="-sdf -param spawn_door_24 -model doorF0F -x 0.180682 -y 9.626275 -z 1.8423895  -wait elevator1" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door25" args="-sdf -param spawn_door_25 -model doorF0G -x 0.180682 -y 6.86128 -z 1.8423895 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+  <node pkg="gazebo_ros" type="spawn_model" name="gazebo_door26" args="-sdf -param spawn_door_26 -model doorF0H -x 0.180682 -y 6.053975 -z 1.8423895 -wait elevator2" respawn="false" output="screen">
+  </node>
+
+
+  <!-- Hospital Wall structure -->
+  <param name="world_description" command="$(find xacro)/xacro.py $(find youbot_gazebo_hospital)/models/hospital_walls.sdf" />
+
+  <arg name="init_pos_x" default="13.819438"/>
+  <arg name="init_pos_y" default="13.576646"/>
+  <arg name="init_pos_z" default="1.711390"/>
+
+
+  <!-- Youbot model -->
+  <param name="robot_description" command="$(find xacro)/xacro.py $(find youbot_description)/urdf/youbot.urdf.xacro" />
+
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_robot" respawn="false" output="screen"
+    args="-param robot_description
+          -urdf
+          -x $(arg init_pos_x)
+          -y $(arg init_pos_y)
+          -z $(arg init_pos_z)
+          -model youbot">
+  </node>
+
+
+</launch>

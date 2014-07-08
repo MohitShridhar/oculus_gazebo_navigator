@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="true"/>
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+
+    <!-- Empty world: spawn sun and ground plane -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+    <arg name="world_name" value="worlds/empty.world"/>
+  </include>
+
+    <!-- Oculus Rift Virtual Camera -->
+  <param name="spawn_camera" command="$(find xacro)/xacro.py $(find oculus_gazebo_navigator)/models/camera.sdf" />
+
+  <node pkg="gazebo_ros" type="spawn_model" name="oculus_gazebo_camera" args="-sdf -param spawn_camera -model camera -x 6.363270 -y -3.420501 -z 27.356117" respawn="true" output="screen">
+  </node>
+
+
+</launch>
