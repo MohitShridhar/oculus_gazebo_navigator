@@ -1,5 +1,5 @@
 /*
-A plugin to control the virtual Oculus-Rift camera in Gazebo 3.0
+A plugin to control the virtual Oculus-Rift camera in Gazebo 3.0 via a PS3 controller
 Copyright (C) 2014  David Lee, Mohit Shridhar
 
 This program is free software: you can redistribute it and/or modify
