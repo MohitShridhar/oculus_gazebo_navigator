@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
 
+  <!-- NOTE: This launch file requires the 'youbot_gazebo_hospital' package -->
+
   <arg name="use_sim_time" default="true"/>
   <arg name="gui" default="true"/>
   <arg name="headless" default="false"/>
@@ -252,7 +254,7 @@
   <arg name="init_pos_z" default="1.711390"/>
 
 
-  <!-- Youbot model -->
+  <!-- Youbot Model -->
   <param name="robot_description" command="$(find xacro)/xacro.py $(find youbot_description)/urdf/youbot.urdf.xacro" />
 
   <node pkg="gazebo_ros" type="spawn_model" name="spawn_robot" respawn="false" output="screen"
