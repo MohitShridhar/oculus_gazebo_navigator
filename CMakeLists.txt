@@ -15,7 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 catkin_package(
- # INCLUDE_DIRS include
+ INCLUDE_DIRS include
  LIBRARIES oculus_gazebo_navigator
  CATKIN_DEPENDS gazebo_plugins gazebo_ros gazebo_ros geometry_msgs nodelet roscpp rospy std_msgs tf sensor_msgs
 )
@@ -35,6 +35,7 @@ find_package(Boost 1.40 COMPONENTS program_options REQUIRED)
 
 
 include_directories(
+  include
   ${catkin_INCLUDE_DIRS}
   ${GAZEBO_INCLUDE_DIRS}
   ${PROTOBUF_INCLUDE_DIR}
@@ -50,10 +51,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 add_executable(oculus_keyboard_teleop controllers/oculus_keyboard_teleop.cpp)
 target_link_libraries(oculus_keyboard_teleop ${catkin_LIBRARIES})
 
-add_library(oculus_plugin plugins/oculus_plugin.cc)
+add_library(oculus_plugin plugins/oculus_keyboard_teleop_plugin.cc)
 target_link_libraries(oculus_plugin ${GAZEBO_LIBRARIES} ${catkin_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${PROTOBUF_LIBRARY})
 
-add_library(ps3_oculus_teleop plugins/ps3_teleop_plugin.cc)
+add_library(ps3_oculus_teleop plugins/oculus_ps3_teleop_plugin.cc)
 target_link_libraries(ps3_oculus_teleop ${GAZEBO_LIBRARIES} ${catkin_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${PROTOBUF_LIBRARY})
 
 # create softlinks for OSX libraries (Gazebo looks for .so file not OSX .dylib files)

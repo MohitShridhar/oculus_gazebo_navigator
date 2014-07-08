@@ -1,4 +1,4 @@
-#include "ps3_teleop_plugin.h"
+#include "oculus_ps3_teleop_plugin.h"
 
 namespace gazebo
 {   
