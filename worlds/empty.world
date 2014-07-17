@@ -14,5 +14,10 @@
 		    <shadows>0</shadows>
  		</scene>
 
+        <physics type= "ode">
+            <max_step_size>0.007</max_step_size>
+        </physics>
+
+
   </world>
 </sdf>

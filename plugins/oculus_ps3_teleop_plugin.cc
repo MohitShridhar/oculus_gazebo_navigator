@@ -48,7 +48,7 @@ namespace gazebo
         this->isCollisionEnabled = true;
         this->isXrayVisionEnabled = false;
         this->isBotIsoControlEnabled = false;
-        this->isBotTfListenerControlEnabled = true;
+        this->isBotTfListenerControlEnabled = false;
 
         this->botOffsetPose = this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->GetWorldPose();
 
@@ -75,8 +75,9 @@ namespace gazebo
         this->model = _parent;
         this->bodyLink = this->model->GetLink("body");
 
-        this->rosNode = new ros::NodeHandle("/joy0");
+        this->rosNode = new ros::NodeHandle("");
         this->sub_twist = this->rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ROSCallbackJoy, this);
+        this->sub_origin_offset = this->rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::CallbackOriginOffset, this);
         this->pub_cmd_vel = this->rosNode->advertise<geometry_msgs::Twist>(BOT_CMD_TOPIC_NAME, 50);
 
         this->updateConnection = event::Events::ConnectWorldUpdateBegin(
@@ -92,14 +93,14 @@ namespace gazebo
 
     void OculusGazeboNavigator::updateVel()
     {
-        //Bot control: TF Listener:
+        //Bot control - TF Listener:
         if (this->isBotTfListenerControlEnabled) {
             updateFpvVel();
             updateBotVelListener();
             return;
         }
 
-        //Bot control: Joystick:
+        //Bot control - Joystick:
         if (!this->isBotIsoControlEnabled) {
             updateFpvVel();
             updateBotVel();
@@ -156,44 +157,39 @@ namespace gazebo
         pub_cmd_vel.publish(bot_cmd_vel);
     }
 
-    // TF Listener Mode: Bot World-Pose controlled directly via a TF Listener
+    // TF Listener Mode: Bot World-Pose controlled directly via TF
     void OculusGazeboNavigator::updateBotVelListener()
     {
         bool wasLookUpSuccessful = lookupTfListener();
 
         if (!wasLookUpSuccessful) {
+            ROS_ERROR("Failed to receive data from TF Listener\n");
             return;
         } 
 
-        math::Pose newBotPose = transformTo3DOFPoseRotated(transform);
+        math::Pose tfRawPose = transformTo3DOFPose(transform);
+        math::Pose gzRotatedPose = tfRawPose.RotatePositionAboutOrigin(this->botOffsetQuat);
 
-        newBotPose.pos.x -= botOffsetPose.pos.x;
-        newBotPose.pos.y -= botOffsetPose.pos.y;
-        newBotPose.rot.z -= botOffsetPose.rot.z;
+        gzRotatedPose.pos.x -= this->botOffsetPose.pos.x;
+        gzRotatedPose.pos.y -= this->botOffsetPose.pos.y;
+        gzRotatedPose.pos.z = BOT_FIXED_Z_POS;
+        
+        gzRotatedPose.rot = math::Quaternion(0, 0, tfRawPose.rot.GetYaw() + botOffsetQuat.GetYaw());
 
-        this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->SetWorldPose(newBotPose);
+        this->model->SetWorldPose(gzRotatedPose);
+
     }
 
     void OculusGazeboNavigator::calibrateBot()
     {
-        bool wasLookUpSuccessful = lookupTfListener();
+        this->botOffsetQuat = tfToGzQuat(transform.getRotation()).GetInverse();
+        math::Pose tfOriginPose = transformTo3DOFPose(transform);
 
-        if (!wasLookUpSuccessful) {
-            printf("Oculus Navigator: CALIBRATION FAILED - Could not get TF data\n");
-            return;
-        }
+        this->botOffsetPose = tfOriginPose.RotatePositionAboutOrigin(this->botOffsetQuat);
+        this->botOffsetPose.rot = tfOriginPose.rot;         
+    }
 
-        math::Pose realBotPose = transformTo3DOFPoseRotated(transform);
-        math::Pose virtualBotPose = this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->GetWorldPose();
-
-        botOffsetPose.pos.x = realBotPose.pos.x - virtualBotPose.pos.x;
-        botOffsetPose.pos.y = realBotPose.pos.y - virtualBotPose.pos.y;
-        botOffsetPose.rot.z = realBotPose.rot.z - virtualBotPose.rot.z;
-
-        printf("Oculus Navigator: New bot-offset pose – x: %f, y: %f, z: %f, roll: %f, pitch: %f, yaw: %f\n-----------------\n", botOffsetPose.pos.x, botOffsetPose.pos.y, botOffsetPose.pos.z, botOffsetPose.rot.x, botOffsetPose.rot.y, botOffsetPose.rot.z);            
-    }   
-
-    math::Pose OculusGazeboNavigator::transformTo3DOFPoseRotated(tf::StampedTransform trans)
+    math::Pose OculusGazeboNavigator::transformTo3DOFPose(tf::StampedTransform trans)
     {
         tf::Quaternion quatTf = trans.getRotation();
         math::Quaternion quatGz = tfToGzQuat(quatTf);
@@ -205,11 +201,7 @@ namespace gazebo
 
         newPose.pos.x = trans.getOrigin().x();
         newPose.pos.y = trans.getOrigin().y();
-        newPose.rot.z = yaw;
-
-        // Rotate translation vector according to yaw:
-        // newPose.pos = quatGz.RotateVector(newPose.pos);
-        newPose.pos.z = botOffsetPose.pos.z;
+        newPose.rot = math::Quaternion(0.0, 0.0, yaw);
 
         return newPose;        
     }
@@ -432,10 +424,12 @@ namespace gazebo
             stabilizedPose.pos.z = FLOOR_HEIGHT;
         }
 
-        stabilizedPose.rot.x = 0;
-        stabilizedPose.rot.y = 0;
+        stabilizedPose.rot.x = 0.0;
+        stabilizedPose.rot.y = 0.0;
 
-        stabilizedPose.rot.z = currPose.rot.z;
+        // stabilizedPose.rot.z = currPose.rot.z;
+        // stabilizedPose.rot.w = currPose.rot.w; 
+        stabilizedPose.rot.z = 0.0;
 
         this->model->SetWorldPose(stabilizedPose);    
     }  
@@ -503,6 +497,17 @@ namespace gazebo
 
         updateBtnStates(msg);
         updateToggleStates();
+    }
+
+    void OculusGazeboNavigator::CallbackOriginOffset(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
+    {
+        geometry_msgs::Pose originPose = msg->pose.pose;
+
+        transform.setOrigin(tf::Vector3(originPose.position.x, originPose.position.y, originPose.position.z));
+        transform.setRotation(tf::Quaternion(originPose.orientation.x, originPose.orientation.y, originPose.orientation.z, originPose.orientation.w));
+
+        calibrateBot();
+        printf("Initial TF Origin pose - POS: %f %f %f\n ROT: %f %f %f %f\n", transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z(), transform.getRotation().x(), transform.getRotation().y(), transform.getRotation().z(), transform.getRotation().w());
     }
 
 }

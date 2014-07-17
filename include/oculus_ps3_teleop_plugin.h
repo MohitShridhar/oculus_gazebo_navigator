@@ -59,8 +59,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define FLOOR_HEIGHT 2.52
 
 // Bot-Control Constants
-#define BOT_MODEL_NAME "youbot"
-#define BOT_CMD_TOPIC_NAME "/youbot/cmd_vel"
+#define BOT_MODEL_NAME "sesto0"
+#define BOT_CMD_TOPIC_NAME "/sesto0/gazebo_cmd_vel"
+#define BOT_YAW_OFFSET 1.57079633
+#define BOT_FIXED_Z_POS 0.79
+
+// #define BOT_MODEL_NAME "youbot"
+// #define BOT_CMD_TOPIC_NAME "/youbot/cmd_vel"
+
 #define NORMAL_LINEAR_SPEED 0.4 // in m/s
 #define NORMAL_ANGULAR_SPEED 0.785 // in rad/s
 
@@ -135,6 +141,7 @@ namespace gazebo
 	private: void GzHMDCallback(QuaternionPtr &msg);
     private: void updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg);
     private: void ROSCallbackJoy(const sensor_msgs::Joy::ConstPtr& msg);
+    private: void CallbackOriginOffset(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
  	private: void updateToggleStates();
 
 	private: void updateVel();
@@ -144,7 +151,7 @@ namespace gazebo
 	private: void updateFpvVel();
 
 	private: void calibrateBot();
-	private: math::Pose transformTo3DOFPoseRotated(tf::StampedTransform trans);
+	private: math::Pose transformTo3DOFPose(tf::StampedTransform trans);
 	private: math::Quaternion tfToGzQuat(tf::Quaternion quatTf);
 	private: bool lookupTfListener();
 
@@ -169,7 +176,7 @@ namespace gazebo
 
     private: ros::NodeHandle* rosNode;
     private: transport::NodePtr gazeboNode;
-    private: ros::Subscriber sub_twist;
+    private: ros::Subscriber sub_twist, sub_origin_offset;
     private: ros::Publisher pub_cmd_vel;
 
     private: tf::TransformListener tfListener;
@@ -181,7 +188,7 @@ namespace gazebo
     private: math::Vector3 cmd_linear_vel, cmd_hovering_vel;
     private: geometry_msgs::Twist bot_cmd_vel;
     private: math::Pose botOffsetPose;
-    private: math::Quaternion headOrientation;
+    private: math::Quaternion headOrientation, botOffsetQuat;
 
     private: event::ConnectionPtr updateConnection;
 
