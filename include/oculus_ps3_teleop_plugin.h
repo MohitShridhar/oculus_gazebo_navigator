@@ -59,8 +59,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define FLOOR_HEIGHT 2.52
 
 // Bot-Control Constants
-#define BOT_MODEL_NAME "sesto0"
-#define BOT_CMD_TOPIC_NAME "/sesto0/gazebo_cmd_vel"
+#define BOT_MODEL_NAME "sesto1"
+#define BOT_CMD_TOPIC_NAME "/sesto1/cmd_vel"
 #define BOT_YAW_OFFSET 1.57079633
 #define BOT_FIXED_Z_POS 0.79
 
