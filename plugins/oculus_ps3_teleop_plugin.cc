@@ -42,6 +42,12 @@ namespace gazebo
         initVars();
     }
 
+    void OculusGazeboNavigator::parseParams()
+    {
+        this->rosNode->getParam("navigator_bot_name", botName);
+        this->topicCmdVel = "/" + botName + "/cmd_vel";
+    }
+
     void OculusGazeboNavigator::initVars()
     {
         this->isGravityEnabled = true;
@@ -49,8 +55,9 @@ namespace gazebo
         this->isXrayVisionEnabled = false;
         this->isBotIsoControlEnabled = false;
         this->isBotTfListenerControlEnabled = false;
+        this->isNavStackControlEnabled = false;
 
-        this->botOffsetPose = this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->GetWorldPose();
+        this->botOffsetPose = this->model->GetWorld()->GetModel(botName)->GetWorldPose();
 
         ros::Rate rate(ROS_RATE);
     }
@@ -76,9 +83,13 @@ namespace gazebo
         this->bodyLink = this->model->GetLink("body");
 
         this->rosNode = new ros::NodeHandle("");
+        parseParams();
+
         this->sub_twist = this->rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ROSCallbackJoy, this);
         this->sub_origin_offset = this->rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::CallbackOriginOffset, this);
-        this->pub_cmd_vel = this->rosNode->advertise<geometry_msgs::Twist>(BOT_CMD_TOPIC_NAME, 50);
+        this->pub_cmd_vel = this->rosNode->advertise<geometry_msgs::Twist>(this->topicCmdVel, 50);
+        
+        this->cancel_goal_pub_ = this->rosNode->advertise<actionlib_msgs::GoalID>("/" + botName + "/move_base/cancel", 1);
 
         this->updateConnection = event::Events::ConnectWorldUpdateBegin(
         boost::bind(&OculusGazeboNavigator::OnUpdate, this));
@@ -93,6 +104,12 @@ namespace gazebo
 
     void OculusGazeboNavigator::updateVel()
     {
+        // Navigation stack - Bot control:
+        if (this->isNavStackControlEnabled) {
+            updateFpvVel();
+            return;
+        }
+
         //Bot control - TF Listener:
         if (this->isBotTfListenerControlEnabled) {
             updateFpvVel();
@@ -233,9 +250,16 @@ namespace gazebo
 
     void OculusGazeboNavigator::updateToggleStates()
     {
+
+        // Toggle Navigation-Stack control mode:
+        if (wasActivated(BOT_CONTROL_BTN) && !currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
+            toggleNavStackControlMode();
+            printf("Oculus Navigator: Navigation Stack control = %s\n", (isNavStackControlEnabled ? "enabled" : "disabled"));
+        }
+
         // Toggle TF-Listener mode & Joystick bot-control:
 
-        if (wasActivated(BOT_CONTROL_BTN) && !currBtn[LEFT_REAR_TAP]) {
+        if (wasActivated(BOT_CONTROL_BTN) && currBtn[RIGHT_REAR_TAP] && !currBtn[LEFT_REAR_TAP]) {
             toggleBotTfListenerControlMode();
             printf("Oculus Navigator: Bot TF Listener control - %s\n", (isBotTfListenerControlEnabled ? "enabled" : "disabled"));
         }
@@ -265,14 +289,14 @@ namespace gazebo
 
         // Bot-control:
 
-        if (wasActivated(BOT_CONTROL_BTN) && currBtn[LEFT_REAR_TAP]) {
+        if (wasActivated(BOT_CONTROL_BTN) && currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
             toggleBotIsoControlMode();
             printf("Oculus Navigator: Bot-Control mode %s, Fpv Navigator %s\n", (isBotIsoControlEnabled ? "enabled" : "disabled"), (isBotIsoControlEnabled ? "disabled" : "enabled"));
         }
 
         if (wasActivated(BOT_RESET_BTN) && !currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
             resetBot();
-            printf("Oculus Navigator: '%s' reset to offset pose\n", BOT_MODEL_NAME);
+            printf("Oculus Navigator: '%s' reset to offset pose\n", botName.c_str());
         }
 
         // Programmable services based on pose context:
@@ -303,17 +327,33 @@ namespace gazebo
 
     void OculusGazeboNavigator::resetBot()
     {
-        this->model->GetWorld()->GetModel(BOT_MODEL_NAME)->SetWorldPose(botOffsetPose);
+        this->model->GetWorld()->GetModel(botName)->SetWorldPose(botOffsetPose);
     }
 
     void OculusGazeboNavigator::toggleBotIsoControlMode()
     {
         isBotIsoControlEnabled = !isBotIsoControlEnabled;
+        isBotTfListenerControlEnabled = false;
+        isNavStackControlEnabled = false;
+    }
+
+    void OculusGazeboNavigator::toggleNavStackControlMode()
+    {
+        isNavStackControlEnabled = !isNavStackControlEnabled;
+        isBotIsoControlEnabled = false;
+        isBotTfListenerControlEnabled = false;
+
+        if (!isNavStackControlEnabled) {
+            actionlib_msgs::GoalID emptyReq;
+            this->cancel_goal_pub_.publish(emptyReq);
+        }
     }
 
     void OculusGazeboNavigator::toggleBotTfListenerControlMode()
     {
         isBotTfListenerControlEnabled = !isBotTfListenerControlEnabled;
+        isNavStackControlEnabled = false;
+        isBotIsoControlEnabled = false;
     }
 
     void OculusGazeboNavigator::toggleGravityMode()

@@ -27,6 +27,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <gazebo/msgs/msgs.hh>
 
 #include <sensor_msgs/Joy.h>
+#include <actionlib_msgs/GoalID.h>
 
 #include <gazebo/rendering/OculusCamera.hh>
 #include <gazebo/rendering/RenderEngine.hh>
@@ -59,8 +60,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define FLOOR_HEIGHT 2.52
 
 // Bot-Control Constants
-#define BOT_MODEL_NAME "sesto1"
-#define BOT_CMD_TOPIC_NAME "/sesto1/cmd_vel"
 #define BOT_YAW_OFFSET 1.57079633
 #define BOT_FIXED_Z_POS 0.79
 
@@ -135,6 +134,7 @@ namespace gazebo
 	public: void OnUpdate();
 
 	private: void initVars();
+	private: void parseParams();
 	private: void setupHMDSubscription();
 	private: void establishLinks(physics::ModelPtr _parent);
 
@@ -159,6 +159,7 @@ namespace gazebo
 	private: void toggleBotIsoControlMode();
 	private: void toggleBotTfListenerControlMode();
 	private: void toggleGravityMode();
+	private: void toggleNavStackControlMode();
 	private: float computeHoverVelocity(float currVerticalVel);
 	private: void toggleCollisionMode();	
 	private: void toggleXrayMode();
@@ -177,7 +178,8 @@ namespace gazebo
     private: ros::NodeHandle* rosNode;
     private: transport::NodePtr gazeboNode;
     private: ros::Subscriber sub_twist, sub_origin_offset;
-    private: ros::Publisher pub_cmd_vel;
+    private: ros::Publisher pub_cmd_vel, cancel_goal_pub_;
+    private: std::string botName, topicCmdVel;
 
     private: tf::TransformListener tfListener;
     private: tf::StampedTransform transform;
@@ -197,7 +199,7 @@ namespace gazebo
     private: bool currBtn[16], prevBtn[16];
 
     // World States:
-    private: bool isGravityEnabled, isCollisionEnabled, isXrayVisionEnabled, isBotIsoControlEnabled, isBotTfListenerControlEnabled;
+    private: bool isGravityEnabled, isCollisionEnabled, isXrayVisionEnabled, isBotIsoControlEnabled, isBotTfListenerControlEnabled, isNavStackControlEnabled;
 
 	};
 

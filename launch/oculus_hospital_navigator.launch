@@ -14,10 +14,10 @@
 
   <!-- PS3 Contoller - Teleop -->
 
+  <param name="navigator_bot_name" value="sesto0"/>
+
   <param name="spawn_camera" command="$(find xacro)/xacro.py $(find oculus_gazebo_navigator)/models/camera_ps3_teleop.sdf" />
   
-
-
   <!-- Keyboard - Teleop (Uncomment the following line and comment out the previous line to switch to keyboard controls): -->
   <!--   <param name="spawn_camera" command="$(find xacro)/xacro.py $(find oculus_gazebo_navigator)/models/camera.sdf" /> -->
 

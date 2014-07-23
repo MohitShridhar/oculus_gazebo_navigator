@@ -266,9 +266,10 @@
           -model youbot">
   </node> -->
 
-
   <!-- SESTO model: -->
-  <param name="robot_description" command="$(find xacro)/xacro.py $(find sesto_model_pkg)/robots/sesto_model_pkg.urdf.xacro" />
+  <arg name="robot_name" default="sesto0"/>
+
+  <param name="robot_description" command="$(find xacro)/xacro.py '$(find sesto_description)/robots/sesto_model_pkg.urdf.xacro' prefix:=$(arg robot_name)" />
 
   <node pkg="gazebo_ros" type="spawn_model" name="spawn_robot" respawn="false" output="screen"
     args="-param robot_description
@@ -276,7 +277,7 @@
           -x $(arg init_pos_x)
           -y $(arg init_pos_y)
           -z $(arg init_pos_z)
-          -model sesto0">
+          -model $(arg robot_name)">
   </node>
 
 
