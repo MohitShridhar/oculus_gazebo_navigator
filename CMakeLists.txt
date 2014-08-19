@@ -48,17 +48,11 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 
-add_executable(oculus_keyboard_teleop controllers/oculus_keyboard_teleop.cpp)
+add_executable(oculus_keyboard_teleop src/controllers/oculus_keyboard_teleop.cpp)
 target_link_libraries(oculus_keyboard_teleop ${catkin_LIBRARIES})
 
-add_library(oculus_plugin plugins/oculus_keyboard_teleop_plugin.cc)
+add_library(oculus_plugin src/plugins/oculus_keyboard_teleop_plugin.cc)
 target_link_libraries(oculus_plugin ${GAZEBO_LIBRARIES} ${catkin_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${PROTOBUF_LIBRARY})
 
-add_library(ps3_oculus_teleop plugins/oculus_ps3_teleop_plugin.cc)
+add_library(ps3_oculus_teleop src/plugins/oculus_ps3_teleop_plugin.cc)
 target_link_libraries(ps3_oculus_teleop ${GAZEBO_LIBRARIES} ${catkin_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${PROTOBUF_LIBRARY})
-
-# create softlinks for OSX libraries (Gazebo looks for .so file not OSX .dylib files)
-if (APPLE) 
-  add_definitions(`${CMAKE_CURRENT_SOURCE_DIR}/scripts/DylibSoftlinks.sh`)
-endif()
-
