@@ -1,7 +1,0 @@
-set(_CATKIN_CURRENT_PACKAGE "oculus_gazebo_navigator")
-set(oculus_gazebo_navigator_MAINTAINER "MohitSridhar <mohit.appi@gmail.com>")
-set(oculus_gazebo_navigator_DEPRECATED "")
-set(oculus_gazebo_navigator_VERSION "0.0.0")
-set(oculus_gazebo_navigator_BUILD_DEPENDS "gazebo_plugins" "gazebo_ros" "gazebo_ros" "geometry_msgs" "sensor_msgs" "nodelet" "roscpp" "rospy" "std_msgs" "tf")
-set(oculus_gazebo_navigator_RUN_DEPENDS "gazebo_plugins" "gazebo_ros" "geometry_msgs" "sensor_msgs" "nodelet" "roscpp" "rospy" "std_msgs" "tf")
-set(oculus_gazebo_navigator_BUILDTOOL_DEPENDS "catkin")

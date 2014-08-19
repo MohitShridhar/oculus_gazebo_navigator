@@ -1,8 +1,0 @@
-prefix=/usr/local
-
-Name: oculus_gazebo_navigator
-Description: Description of oculus_gazebo_navigator
-Version: 0.0.0
-Cflags: 
-Libs: -L/usr/local/lib -loculus_gazebo_navigator
-Requires: gazebo_plugins gazebo_ros gazebo_ros geometry_msgs nodelet roscpp rospy std_msgs tf sensor_msgs

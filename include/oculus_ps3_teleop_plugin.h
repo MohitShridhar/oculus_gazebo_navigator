@@ -49,13 +49,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <tf/transform_listener.h>
 
 // FPV Constants
-#define WALKING_SPEED_X 2.0 // in m/s
-#define WALKING_SPEED_Y 1.5
+#define WALKING_SPEED_X 4.0 //2.0 // in m/s
+#define WALKING_SPEED_Y 3.0 //1.5
 
-#define RUNNING_SPEED_X 4.0
-#define RUNNING_SPEED_Y 3.0
+#define RUNNING_SPEED_X 8.0 // 4.0
+#define RUNNING_SPEED_Y 6.0 // 3.0
 
-#define VERTICAL_SPEED 1.0
+#define VERTICAL_SPEED 2.0 // 1.0
 #define CEILING_HEIGHT 40.0 // in meters
 #define FLOOR_HEIGHT 2.52
 
@@ -66,8 +66,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // #define BOT_MODEL_NAME "youbot"
 // #define BOT_CMD_TOPIC_NAME "/youbot/cmd_vel"
 
-#define NORMAL_LINEAR_SPEED 0.4 // in m/s
-#define NORMAL_ANGULAR_SPEED 0.785 // in rad/s
+#define NORMAL_LINEAR_SPEED 0.8 //0.4 // in m/s
+#define NORMAL_ANGULAR_SPEED 1.53 // 0.785 // in rad/s
 
 #define FAST_LINEAR_SPEED 1.1
 #define FAST_ANGULAR_SPEED  1.60 
@@ -123,7 +123,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 namespace gazebo
 {
 
-	typedef const boost::shared_ptr<const msgs::Quaternion> QuaternionPtr;
+	// typedef const boost::shared_ptr<const msgs::Quaternion> QuaternionPtr;
 
 	class OculusGazeboNavigator : public ModelPlugin {
 
@@ -138,7 +138,7 @@ namespace gazebo
 	private: void setupHMDSubscription();
 	private: void establishLinks(physics::ModelPtr _parent);
 
-	private: void GzHMDCallback(QuaternionPtr &msg);
+	private: void GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg);
     private: void updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg);
     private: void ROSCallbackJoy(const sensor_msgs::Joy::ConstPtr& msg);
     private: void CallbackOriginOffset(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
