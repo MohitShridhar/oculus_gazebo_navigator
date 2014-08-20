@@ -98,11 +98,11 @@ namespace gazebo
     public: void OnUpdate()
     {
     	ros::spinOnce();
-    	UpdateVel();
+    	updateVels();
     	Stabilize();
     }
 
-    private: void UpdateVel()
+    private: void updateVels()
     {	
     	math::Vector3 currLinearVel = this->bodyLink->GetRelativeLinearVel();
     	// math::Vector3 currAngularVel = this->bodyLink->GetRelativeAngularVel();

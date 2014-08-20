@@ -1,20 +1,22 @@
-/*
-A plugin to control the virtual Oculus-Rift camera in Gazebo 3.0
-Copyright (C) 2014  David Lee, Mohit Shridhar
+// Copyright (c) 2014 Mohit Shridhar, David Lee
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 
 #include <boost/bind.hpp>
 #include <gazebo/gazebo.hh>
@@ -48,31 +50,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 
-// FPV Constants
-#define WALKING_SPEED_X 4.0 //2.0 // in m/s
-#define WALKING_SPEED_Y 3.0 //1.5
+// Camera Default Settings:
+#define DEFAULT_WAKING_SPEED_X 2.0 // in m/s
+#define DEFAULT_WALKING_SPEED_Y 1.5
 
-#define RUNNING_SPEED_X 8.0 // 4.0
-#define RUNNING_SPEED_Y 6.0 // 3.0
+#define DEFAULT_RUNNING_SPEED_X 4.0
+#define DEFAULT_RUNNING_SPEED_Y 3.0
 
-#define VERTICAL_SPEED 2.0 // 1.0
-#define CEILING_HEIGHT 40.0 // in meters
-#define FLOOR_HEIGHT 2.52
+#define DEFAULT_VERTICAL_SPEED 1.0
+#define DEFAULT_LIMIT_UPPER_POS 41.0 // in meters
+#define DEFAULT_LIMIT_LOWER_POS 2.52
 
-// Bot-Control Constants
-#define BOT_YAW_OFFSET 1.57079633
-#define BOT_FIXED_Z_POS 0.79
+// Bot-Control Default Settings:
+#define DEFAULT_BOT_MIRROR_MODE_FIXED_Z_POS 0.79
 
-// #define BOT_MODEL_NAME "youbot"
-// #define BOT_CMD_TOPIC_NAME "/youbot/cmd_vel"
+#define DEFAULT_BOT_LINEAR_SPEED 0.4 
+#define DEFAULT_BOT_ANGULAR_SPEED 0.785 // rad/s
 
-#define NORMAL_LINEAR_SPEED 0.8 //0.4 // in m/s
-#define NORMAL_ANGULAR_SPEED 1.53 // 0.785 // in rad/s
+#define DEFAULT_BOT_FAST_LINEAR_SPEED 1.1
+#define DEFAULT_BOT_FAST_ANGULAR_SPEED  1.60 
 
-#define FAST_LINEAR_SPEED 1.1
-#define FAST_ANGULAR_SPEED  1.60 
-
-// Buttons:
+// PS3 Controller Buttons:
 #define SELECT 0
 
 #define LEFT_JOY 1
@@ -94,7 +92,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define CROSS 14
 #define SQUARE 15
 
-// Assigned functions:
+#define NUM_CONTROLLER_BTNS 16
+
+// Assigned Button functions:
 #define XRAY_BTN CROSS
 #define COLLISION_BTN SQUARE
 #define GRAVITY_BTN TRIANGLE
@@ -118,88 +118,91 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define REQUEST_RIGHT_BTN "right_btn"
 #define REQUEST_LEFT_BTN "left_btn"
 
+// Other constants:
 #define ROS_RATE 10.0
 
 namespace gazebo
 {
-
-	// typedef const boost::shared_ptr<const msgs::Quaternion> QuaternionPtr;
-
 	class OculusGazeboNavigator : public ModelPlugin {
 
-	public: OculusGazeboNavigator();
-	public: ~OculusGazeboNavigator();
+	public:
+		OculusGazeboNavigator();
+		~OculusGazeboNavigator();
+		void Load(physics::ModelPtr _parent, sdf::ElementPtr);
+		void OnUpdate();
 
-	public: void Load(physics::ModelPtr _parent, sdf::ElementPtr);
-	public: void OnUpdate();
+	private:
+		void initVars();
+		void parseParams();
+		void setupHMDOrientationSub();
+		void establishLinks(physics::ModelPtr _parent);
 
-	private: void initVars();
-	private: void parseParams();
-	private: void setupHMDOrientationSub();
-	private: void establishLinks(physics::ModelPtr _parent);
+		void GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg);
+	    void updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg);
+	    void ps3_controller_cb(const sensor_msgs::Joy::ConstPtr& msg);
+	    void origin_offset_cb(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
+	 	void updateToggleStates();
 
-	private: void GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg);
-    private: void updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg);
-    private: void ROSCallbackJoy(const sensor_msgs::Joy::ConstPtr& msg);
-    private: void CallbackOriginOffset(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
- 	private: void updateToggleStates();
+		void updateVels();
+		void updateBotVel();
+		void updateBotVelIsolated();
+		void updateBotVelListener();
+		void updateCameraVel();
 
-	private: void updateVel();
-	private: void updateBotVel();
-	private: void updateBotVelIsolated();
-	private: void updateBotVelListener();
-	private: void updateCameraVel();
+		void calibrateBot();
+		math::Pose transformTo3DOFPose(tf::StampedTransform trans);
+		math::Quaternion tfToGzQuat(tf::Quaternion quatTf);
+		bool lookupTfListener();
 
-	private: void calibrateBot();
-	private: math::Pose transformTo3DOFPose(tf::StampedTransform trans);
-	private: math::Quaternion tfToGzQuat(tf::Quaternion quatTf);
-	private: bool lookupTfListener();
+		void resetBot();
+		void toggleBotIsoControlMode();
+		void toggleBotTfListenerControlMode();
+		void toggleGravityMode();
+		void toggleNavStackControlMode();
+		float computeHoverVelocity(float currVerticalVel);
+		void toggleCollisionMode();	
+		void toggleXrayMode();
+		bool wasActivated(uint btnRef);
 
-	private: void resetBot();
-	private: void toggleBotIsoControlMode();
-	private: void toggleBotTfListenerControlMode();
-	private: void toggleGravityMode();
-	private: void toggleNavStackControlMode();
-	private: float computeHoverVelocity(float currVerticalVel);
-	private: void toggleCollisionMode();	
-	private: void toggleXrayMode();
-	private: bool wasActivated(uint btnRef);
+		void checkModeChanges();
+		void checkWorldPropChanges();
+		void checkBotControlChanges();
+		void checkServiceRequests();
 
-    private: math::Vector3 constrainVerticalMovement(math::Vector3 currLinearVel);
-    private: bool isStrayVerticalVel(math::Vector3 currLinearVel);
-    private: math::Vector3 computeVelocities(math::Vector3 currLinearVel);
-    private: void stabilize();
+	    math::Vector3 constrainVerticalMovement(math::Vector3 currLinearVel);
+	    bool isStrayVerticalVel(math::Vector3 currLinearVel);
+	    math::Vector3 computeVelocities(math::Vector3 currLinearVel);
+	    void stabilize();
 
-    // Global Vars:
+	private:
+	    physics::ModelPtr model;
+	    physics::LinkPtr bodyLink;
 
-    private: physics::ModelPtr model;
-    private: physics::LinkPtr bodyLink;
+	    ros::NodeHandle* rosNode;
+	    transport::NodePtr gazeboNode;
+	    ros::Subscriber sub_twist, sub_origin_offset;
+	    ros::Publisher pub_cmd_vel, cancel_goal_pub_;
+	    std::string botName, topicCmdVel;
 
-    private: ros::NodeHandle* rosNode;
-    private: transport::NodePtr gazeboNode;
-    private: ros::Subscriber sub_twist, sub_origin_offset;
-    private: ros::Publisher pub_cmd_vel, cancel_goal_pub_;
-    private: std::string botName, topicCmdVel;
+	    tf::TransformListener tfListener;
+	    tf::StampedTransform transform;
 
-    private: tf::TransformListener tfListener;
-    private: tf::StampedTransform transform;
+	    transport::SubscriberPtr hmdOrientationSub;
+	    transport::PublisherPtr pubCameraPose;
 
-    private: transport::SubscriberPtr hmdOrientationSub;
-    private: transport::PublisherPtr pubCameraPose;
+	    math::Vector3 cmd_linear_vel, cmd_hovering_vel;
+	    geometry_msgs::Twist bot_cmd_vel;
+	    math::Pose botOffsetPose;
+	    math::Quaternion headOrientation, botOffsetQuat;
 
-    private: math::Vector3 cmd_linear_vel, cmd_hovering_vel;
-    private: geometry_msgs::Twist bot_cmd_vel;
-    private: math::Pose botOffsetPose;
-    private: math::Quaternion headOrientation, botOffsetQuat;
+	    event::ConnectionPtr updateConnection;
 
-    private: event::ConnectionPtr updateConnection;
+	    // PS3 Dual-shock controller buttons and joysticks:
+	    float stickRightX, stickRightY, stickLeftX, stickLeftY;
+	    bool currBtn[16], prevBtn[16];
 
-    // PS3 Dual-shock controller buttons and joysticks:
-    private: float stickRightX, stickRightY, stickLeftX, stickLeftY;
-    private: bool currBtn[16], prevBtn[16];
-
-    // World States:
-    private: bool isGravityEnabled, isCollisionEnabled, isXrayVisionEnabled, isBotIsoControlEnabled, isBotTfListenerControlEnabled, isAutoNavEnabled;
+	    // World States:
+	    bool isGravityEnabled, isCollisionEnabled, isXrayVisionEnabled, isBotIsoControlEnabled, isBotTfListenerControlEnabled, isAutoNavEnabled;
 
 	};
 

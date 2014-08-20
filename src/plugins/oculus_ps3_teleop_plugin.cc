@@ -29,7 +29,6 @@ namespace gazebo
       std::string name = "oculus_ps3_gazebo_navigator";
       int argc = 0;
       ros::init(argc, NULL, name);
-
     }
 
     OculusGazeboNavigator::~OculusGazeboNavigator()
@@ -87,8 +86,8 @@ namespace gazebo
         rosNode = new ros::NodeHandle("");
         parseParams();
 
-        sub_twist = rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ROSCallbackJoy, this);
-        sub_origin_offset = rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::CallbackOriginOffset, this);
+        sub_twist = rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ps3_controller_cb, this);
+        sub_origin_offset = rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::origin_offset_cb, this);
         pub_cmd_vel = rosNode->advertise<geometry_msgs::Twist>(topicCmdVel, 50);
         
         cancel_goal_pub_ = rosNode->advertise<actionlib_msgs::GoalID>("/" + botName + "/move_base/cancel", 1);
@@ -100,11 +99,11 @@ namespace gazebo
     void OculusGazeboNavigator::OnUpdate()
     {
         ros::spinOnce();
-        updateVel();
+        updateVels();
         stabilize();
     }
 
-    void OculusGazeboNavigator::updateVel()
+    void OculusGazeboNavigator::updateVels()
     {
         // Control Priority 1: Autonomous Navigation (Manual: Oculus Virtual Camera)
         if (isAutoNavEnabled) {
@@ -140,11 +139,11 @@ namespace gazebo
         if (!currBtn[RIGHT_REAR_TAP]) { // linear controls
 
             if (fabs(stickRightY) > fabs(stickRightX)) {
-                bot_cmd_vel.linear.x = stickRightY * (currBtn[LEFT_REAR_TAP] ? FAST_LINEAR_SPEED : NORMAL_LINEAR_SPEED);
+                bot_cmd_vel.linear.x = stickRightY * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_LINEAR_SPEED : DEFAULT_BOT_LINEAR_SPEED);
                 bot_cmd_vel.linear.y = 0.0;            
             } else {
                 bot_cmd_vel.linear.x = 0.0;
-                bot_cmd_vel.linear.y = -stickRightX * (currBtn[LEFT_REAR_TAP] ? FAST_LINEAR_SPEED : NORMAL_LINEAR_SPEED);
+                bot_cmd_vel.linear.y = -stickRightX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_LINEAR_SPEED : DEFAULT_BOT_LINEAR_SPEED);
             }
 
             bot_cmd_vel.angular.z = 0.0;
@@ -154,7 +153,7 @@ namespace gazebo
             bot_cmd_vel.linear.x = 0.0;
             bot_cmd_vel.linear.y = 0.0;
 
-            bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? FAST_ANGULAR_SPEED : NORMAL_ANGULAR_SPEED);
+            bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_ANGULAR_SPEED : DEFAULT_BOT_ANGULAR_SPEED);
         }
 
         bot_cmd_vel.angular.x = 0.0;
@@ -172,23 +171,24 @@ namespace gazebo
     {
         // Mimic "Mecanum wheels" effect:
         if (fabs(stickLeftY) > fabs(stickLeftX)) {
-            bot_cmd_vel.linear.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? FAST_LINEAR_SPEED : NORMAL_LINEAR_SPEED);
+            bot_cmd_vel.linear.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_LINEAR_SPEED : DEFAULT_BOT_LINEAR_SPEED);
             bot_cmd_vel.linear.y = 0.0;
         } else {
             bot_cmd_vel.linear.x = 0.0;
-            bot_cmd_vel.linear.y = -stickLeftX * (currBtn[LEFT_REAR_TAP] ? FAST_LINEAR_SPEED : NORMAL_LINEAR_SPEED);
+            bot_cmd_vel.linear.y = -stickLeftX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_LINEAR_SPEED : DEFAULT_BOT_LINEAR_SPEED);
         }
 
         bot_cmd_vel.angular.x = 0.0;
         bot_cmd_vel.angular.y = 0.0;
-        bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? FAST_ANGULAR_SPEED : NORMAL_ANGULAR_SPEED);
+        bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_ANGULAR_SPEED : DEFAULT_BOT_ANGULAR_SPEED);
 
         pub_cmd_vel.publish(bot_cmd_vel);
     }
 
 
     /*
-        Mirrored Navigation: Bot World-Pose controlled directly via TF, Camera (Left joystick -> x, y axis)
+        Mirrored Navigation: Bot World-Pose controlled directly via TF. Useful for playing back data from recorded rosbags
+        Camera (Left joystick -> x, y axis)
     */
 
     void OculusGazeboNavigator::updateBotVelListener()
@@ -205,7 +205,7 @@ namespace gazebo
 
         gzRotatedPose.pos.x -= botOffsetPose.pos.x;
         gzRotatedPose.pos.y -= botOffsetPose.pos.y;
-        gzRotatedPose.pos.z = BOT_FIXED_Z_POS;
+        gzRotatedPose.pos.z = DEFAULT_BOT_MIRROR_MODE_FIXED_Z_POS; // Note: under 'Mirrored Navigation' mode, the bot constrained to the x-y plane due the nature of the TF data produced from a flat static map
         
         gzRotatedPose.rot = math::Quaternion(0, 0, tfRawPose.rot.GetYaw() + botOffsetQuat.GetYaw());
 
@@ -265,7 +265,14 @@ namespace gazebo
 
     void OculusGazeboNavigator::updateToggleStates()
     {
+        checkModeChanges();
+        checkWorldPropChanges();
+        checkBotControlChanges();
+        checkServiceRequests();
+    }
 
+    void OculusGazeboNavigator::checkModeChanges()
+    {
         // Toggle Navigation-Stack control mode:
         if (wasActivated(BOT_CONTROL_BTN) && !currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
             toggleNavStackControlMode();
@@ -273,20 +280,19 @@ namespace gazebo
         }
 
         // Toggle TF-Listener mode & Joystick bot-control:
-
         if (wasActivated(BOT_CONTROL_BTN) && currBtn[RIGHT_REAR_TAP] && !currBtn[LEFT_REAR_TAP]) {
             toggleBotTfListenerControlMode();
             ROS_INFO("Oculus Navigator: Bot TF Listener control - %s", (isBotTfListenerControlEnabled ? "enabled" : "disabled"));
         }
 
         // Calibrate Real-world pos & Gazebo bot origin through manual alignment:
-
         if (wasActivated(BOT_CALIBRATE_BTN) && currBtn[LEFT_REAR_TAP] && currBtn[RIGHT_REAR_TAP]) {
             calibrateBot();
         }
+    }
 
-        // World properties control:
-
+    void OculusGazeboNavigator::checkWorldPropChanges()
+    {
         if (wasActivated(GRAVITY_BTN)) {
             toggleGravityMode();
             ROS_INFO("Oculus Navigator: Gravity %s", (isGravityEnabled ? "enabled" : "disabled"));
@@ -301,9 +307,10 @@ namespace gazebo
             toggleXrayMode();
             ROS_INFO("Oculus Navigator: X-Ray mode %s", (isXrayVisionEnabled ? "enabled" : "disabled"));
         }
+    }
 
-        // Bot-control:
-
+    void OculusGazeboNavigator::checkBotControlChanges()
+    {
         if (wasActivated(BOT_CONTROL_BTN) && currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
             toggleBotIsoControlMode();
             ROS_INFO("Oculus Navigator: Bot-Control mode %s, Camera Navigator %s", (isBotIsoControlEnabled ? "enabled" : "disabled"), (isBotIsoControlEnabled ? "disabled" : "enabled"));
@@ -313,9 +320,11 @@ namespace gazebo
             resetBot();
             ROS_INFO("Oculus Navigator: '%s' reset to offset pose", botName.c_str());
         }
+    }
 
+    void OculusGazeboNavigator::checkServiceRequests()
+    {
         // Programmable services based on pose context:
-
         if (wasActivated(SERVICE_UP_BTN) || wasActivated(SERVICE_DOWN_BTN) || wasActivated(SERVICE_RIGHT_BTN) || wasActivated(SERVICE_LEFT_BTN)) {
             pubCameraPose->Publish(msgs::Convert(model->GetWorldPose()));
         } else {
@@ -380,9 +389,9 @@ namespace gazebo
     {
         if (!isGravityEnabled) {
             if (currBtn[HOVER_DOWN_BTN]) {
-                currVerticalVel = -VERTICAL_SPEED;
+                currVerticalVel = -DEFAULT_VERTICAL_SPEED;
             } else if (currBtn[HOVER_UP_BTN]) {
-                currVerticalVel = VERTICAL_SPEED;
+                currVerticalVel = DEFAULT_VERTICAL_SPEED;
             } else if (currBtn[HOVER_STEADY_BTN]) {
                 currVerticalVel = 0;
             }
@@ -416,7 +425,7 @@ namespace gazebo
 
     bool OculusGazeboNavigator::wasActivated(uint btnRef)
     {
-        // Register 'state changes' only
+        // Register button 'state changes' only
         if (prevBtn[btnRef] != currBtn[btnRef] && currBtn[btnRef] == true) {
             return true;
         }
@@ -437,7 +446,6 @@ namespace gazebo
 
     math::Vector3 OculusGazeboNavigator::constrainVerticalMovement(math::Vector3 currLinearVel)
     { 
-
         if (isStrayVerticalVel(currLinearVel)) {
             currLinearVel.z = 0.0;
         }
@@ -447,14 +455,14 @@ namespace gazebo
 
     bool OculusGazeboNavigator::isStrayVerticalVel(math::Vector3 currLinearVel)
     {
-        return (currLinearVel.z > 0.0 && (fabs(currLinearVel.x) > (currBtn[LEFT_REAR_TAP] ? RUNNING_SPEED_X/2 : WALKING_SPEED_X/2) || fabs(currLinearVel.y) > (currBtn[LEFT_REAR_TAP] ? RUNNING_SPEED_Y/2 : WALKING_SPEED_Y/2))) && isGravityEnabled;
+        return (currLinearVel.z > 0.0 && (fabs(currLinearVel.x) > (currBtn[LEFT_REAR_TAP] ? DEFAULT_RUNNING_SPEED_X/2 : DEFAULT_WAKING_SPEED_X/2) || fabs(currLinearVel.y) > (currBtn[LEFT_REAR_TAP] ? DEFAULT_RUNNING_SPEED_Y/2 : DEFAULT_WALKING_SPEED_Y/2))) && isGravityEnabled;
     }
 
     math::Vector3 OculusGazeboNavigator::computeVelocities(math::Vector3 currLinearVel)
     {
-        // Gazebo's coordinate system is flipped:
-        cmd_linear_vel.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? RUNNING_SPEED_X : WALKING_SPEED_X); 
-        cmd_linear_vel.y = -stickLeftX * (currBtn[LEFT_REAR_TAP] ? RUNNING_SPEED_Y : WALKING_SPEED_Y);
+        // Gazebo's coordinate system is flipped i.e. [x->y]:
+        cmd_linear_vel.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? DEFAULT_RUNNING_SPEED_X : DEFAULT_WAKING_SPEED_X); 
+        cmd_linear_vel.y = -stickLeftX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_RUNNING_SPEED_Y : DEFAULT_WALKING_SPEED_Y);
         cmd_linear_vel.z = 0;
 
         // Rotate velocity vector according to the head orientation:
@@ -472,76 +480,24 @@ namespace gazebo
         math::Pose stabilizedPose;
         stabilizedPose.pos = currPosition;
 
-        if (!isGravityEnabled && currPosition.z > CEILING_HEIGHT) {
-            stabilizedPose.pos.z = CEILING_HEIGHT;
-        } else if (!isCollisionEnabled && currPosition.z < FLOOR_HEIGHT) {
-            stabilizedPose.pos.z = FLOOR_HEIGHT;
+        if (!isGravityEnabled && currPosition.z > DEFAULT_LIMIT_UPPER_POS) {
+            stabilizedPose.pos.z = DEFAULT_LIMIT_UPPER_POS;
+        } else if (!isCollisionEnabled && currPosition.z < DEFAULT_LIMIT_LOWER_POS) {
+            stabilizedPose.pos.z = DEFAULT_LIMIT_LOWER_POS;
         }
-
-        stabilizedPose.rot.x = 0.0;
-        stabilizedPose.rot.y = 0.0;
-
-        // stabilizedPose.rot.z = currPose.rot.z;
-        // stabilizedPose.rot.w = currPose.rot.w; 
-        stabilizedPose.rot.z = 0.0;
 
         model->SetWorldPose(stabilizedPose);    
     }  
 
     void OculusGazeboNavigator::updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg)
     {
-
-        prevBtn[SELECT] = currBtn[SELECT];
-        currBtn[SELECT] = msg->buttons[SELECT];
-
-        prevBtn[LEFT_JOY] = currBtn[LEFT_JOY];
-        currBtn[LEFT_JOY] = msg->buttons[LEFT_JOY];
-
-        prevBtn[RIGHT_JOY] = currBtn[RIGHT_JOY];
-        currBtn[RIGHT_JOY] = msg->buttons[RIGHT_JOY];
-
-        prevBtn[START] = currBtn[START];
-        currBtn[START] = msg->buttons[START];
-
-        prevBtn[UP] = currBtn[UP];
-        currBtn[UP] = msg->buttons[UP];
-
-        prevBtn[RIGHT] = currBtn[RIGHT];
-        currBtn[RIGHT] = msg->buttons[RIGHT];
-        
-        prevBtn[DOWN] = currBtn[DOWN];
-        currBtn[DOWN] = msg->buttons[DOWN];
-
-        prevBtn[LEFT] = currBtn[LEFT];
-        currBtn[LEFT] = msg->buttons[LEFT];
-
-        prevBtn[LEFT_REAR_TAP] = currBtn[LEFT_REAR_TAP];
-        currBtn[LEFT_REAR_TAP] = msg->buttons[LEFT_REAR_TAP];
-
-        prevBtn[RIGHT_REAR_TAP] = currBtn[RIGHT_REAR_TAP];
-        currBtn[RIGHT_REAR_TAP] = msg->buttons[RIGHT_REAR_TAP];
-
-        prevBtn[LEFT_FORWARD_TAP] = currBtn[LEFT_FORWARD_TAP];
-        currBtn[LEFT_FORWARD_TAP] = msg->buttons[LEFT_FORWARD_TAP];
-
-        prevBtn[RIGHT_FORWARD_TAP] = currBtn[RIGHT_FORWARD_TAP];
-        currBtn[RIGHT_FORWARD_TAP] = msg->buttons[RIGHT_FORWARD_TAP];
-
-        prevBtn[TRIANGLE] = currBtn[TRIANGLE];
-        currBtn[TRIANGLE] = msg->buttons[TRIANGLE];
-
-        prevBtn[CIRCLE] = currBtn[CIRCLE];
-        currBtn[CIRCLE] = msg->buttons[CIRCLE];
-
-        prevBtn[CROSS] = currBtn[CROSS];
-        currBtn[CROSS] = msg->buttons[CROSS];
-
-        prevBtn[SQUARE] = currBtn[SQUARE];
-        currBtn[SQUARE] = msg->buttons[SQUARE];
-
+        for (int i=0; i<NUM_CONTROLLER_BTNS; i++) {
+            prevBtn[i] = currBtn[i];
+            currBtn[i] = msg->buttons[i];
+        }
     }     
 
-    void OculusGazeboNavigator::ROSCallbackJoy(const sensor_msgs::Joy::ConstPtr& msg)
+    void OculusGazeboNavigator::ps3_controller_cb(const sensor_msgs::Joy::ConstPtr& msg)
     {
         // Get joystick states:
         stickLeftX = msg->axes[0];
@@ -553,7 +509,7 @@ namespace gazebo
         updateToggleStates();
     }
 
-    void OculusGazeboNavigator::CallbackOriginOffset(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
+    void OculusGazeboNavigator::origin_offset_cb(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg)
     {
         geometry_msgs::Pose originPose = msg->pose.pose;
 
