@@ -4,22 +4,22 @@ keyboard_teleop:
         running_speed: 8
         rotating_speed: 1.57
     others:
-        sampling_duration: 40000 # in microseconds. The interval during which the keyboard input is acquired
+        sampling_duration: 40000 # in microseconds. The interval during which the keyboard input is polled
 
 ps3_teleop:
     camera:
         max_walking_speed_x: 2.0
         max_walking_speed_y: 1.5
 
-        max_running_speed_x: 4.0
+        max_running_speed_x: 4.0 # Be careful with these. run_too_fast == true ? puke : vomit
         max_running_speed_y: 3.0
 
         max_vertical_speed: 1.0
-        upper_position_limit: 41.0 # in meters
-        lower_position_limit: 2.52
+        upper_position_limit: 41.0 # Because we don't want the camera to float away into heaven.
+        lower_position_limit: 2.52 # Because we don't want the camera to sink down into hell. Anyway, you are the master of this->universe. You almighty.
 
     robot:
-        model_name: sesto0
+        model_name: sesto0 
         cmd_vel_topic: sesto0/cmd_vel # can also be remapped later
 
         normal_linear_speed: 0.4
@@ -29,3 +29,5 @@ ps3_teleop:
         fast_angular_speed: 1.60
 
         mirror_mode_fixed_z_pos: 0.79
+        map_frame: map
+        base_link_frame: sesto_frame

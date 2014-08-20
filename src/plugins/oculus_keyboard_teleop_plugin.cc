@@ -53,7 +53,7 @@ namespace gazebo
     public: 
         OculusGazeboNavigator()
         {
-          std::string name = "oculus_gazebo_navigator";
+          std::string name = "oculus_gazebo_navigator_keyboard_teleop";
           int argc = 0;
           ros::init(argc, NULL, name);
 
@@ -61,7 +61,7 @@ namespace gazebo
 
         ~OculusGazeboNavigator()
         {
-          delete this->rosNode;
+          delete rosNode;
           transport::fini();
         }
 
@@ -69,31 +69,31 @@ namespace gazebo
         void Load(physics::ModelPtr _parent, sdf::ElementPtr)
         {
         	establishLinks(_parent);
-        	setupHMDSubscription();
+        	setupHMDOrientationSub();
         }
 
     private: 
-        void setupHMDSubscription()
+        void setupHMDOrientationSub()
         {
         	transport::NodePtr node(new transport::Node());
       		node->Init();
 
-      		this->hmdSub = node->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
+      		hmd_orientation_sub = node->Subscribe("~/oculusHMD", &OculusGazeboNavigator::gz_hmd_orientation_cb, this);
         }
 
-        void GzHMDCallback(QuaternionPtr &msg)
+        void gz_hmd_orientation_cb(QuaternionPtr &msg)
         {
         	headOrientation = msgs::Convert(*msg);
         }
 
         void establishLinks(physics::ModelPtr _parent)
         {
-        	this->model = _parent;
-        	this->bodyLink = this->model->GetLink("body");
+        	model = _parent;
+        	bodyLink = model->GetLink("body");
 
-        	this->rosNode = new ros::NodeHandle("/camera_controller");
+        	rosNode = new ros::NodeHandle("/camera_controller");
 
-          	this->updateConnection = event::Events::ConnectWorldUpdateBegin(
+          	updateConnection = event::Events::ConnectWorldUpdateBegin(
             boost::bind(&OculusGazeboNavigator::OnUpdate, this));
         }
 
@@ -101,24 +101,19 @@ namespace gazebo
         {
         	ros::spinOnce();
         	updateVels();
-        	Stabilize();
+        	stabilizeCamera();
         }
 
         void updateVels()
         {	
-        	math::Vector3 currLinearVel = this->bodyLink->GetRelativeLinearVel();
-        	// math::Vector3 currAngularVel = this->bodyLink->GetRelativeAngularVel();
-
-        	// math::Quaternion headOrientation = this->oculusCamera->GetWorldRotation();
+        	math::Vector3 currLinearVel = bodyLink->GetRelativeLinearVel();
         	math::Vector3 newLinearVel = headOrientation.RotateVector(cmd_linear_vel);
-
-        	this->bodyLink->SetLinearVel(math::Vector3(newLinearVel.x, newLinearVel.y, currLinearVel.z));
-        	// this->bodyLink->SetAngularVel(math::Vector3(0, 0, cmd_angular_vel.z));
+        	bodyLink->SetLinearVel(math::Vector3(newLinearVel.x, newLinearVel.y, currLinearVel.z));
         }
 
-        void Stabilize()
+        void stabilizeCamera()
         {
-        	math::Pose currPose = this->model->GetWorldPose();
+        	math::Pose currPose = model->GetWorldPose();
         	math::Vector3 currPosition = currPose.pos;
 
         	math::Pose stabilizedPose;
@@ -129,32 +124,22 @@ namespace gazebo
 
         	stabilizedPose.rot.z = currPose.rot.z;
 
-        	this->model->SetWorldPose(stabilizedPose);    
-        }
-
-        void ROSCallbackTwist(const geometry_msgs::Twist::ConstPtr& msg)
-        {
-        	// Movements constricted to z plane:
-        	cmd_linear_vel.x = msg->linear.x;
-        	cmd_linear_vel.y = msg->linear.y;
-
-        	cmd_angular_vel.z = msg->angular.z;
+        	model->SetWorldPose(stabilizedPose);    
         }
 
     private:
-        
+
         physics::ModelPtr model;
         physics::LinkPtr bodyLink;
         rendering::OculusCameraPtr oculusCamera;
 
         ros::NodeHandle* rosNode;
-        transport::SubscriberPtr hmdSub;
+        transport::SubscriberPtr hmd_orientation_sub;
 
         math::Vector3 cmd_linear_vel, cmd_angular_vel;
         math::Quaternion headOrientation;
 
        	event::ConnectionPtr updateConnection;
-
   };
 
   GZ_REGISTER_MODEL_PLUGIN(OculusGazeboNavigator)

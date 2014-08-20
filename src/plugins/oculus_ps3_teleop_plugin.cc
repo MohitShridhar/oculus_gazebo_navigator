@@ -89,6 +89,8 @@ namespace gazebo
         rosNode->param<double>(param_namespace_robot_str + "fast_angular_speed" , bot_fast_angular_speed, DEFAULT_BOT_FAST_ANGULAR_SPEED);
 
         rosNode->param<double>(param_namespace_robot_str + "mirror_mode_fixed_z_pos" , mirror_mode_fixed_z_pos, DEFAULT_BOT_MIRROR_MODE_FIXED_Z_POS);
+        rosNode->param<std::string>(param_namespace_robot_str + "map_frame" , map_frame, DEFAULT_MAP_FRAME_NAME);
+        rosNode->param<std::string>(param_namespace_robot_str + "base_link_frame" , base_link_frame, DEFAULT_BASE_LINK_FRAME_NAME);
     }
 
     void OculusGazeboNavigator::initVars()
@@ -112,11 +114,11 @@ namespace gazebo
         gazeboNode = transport::NodePtr(new transport::Node());
         gazeboNode->Init();
 
-        hmd_orientation_sub = gazeboNode->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
+        hmd_orientation_sub = gazeboNode->Subscribe("~/oculusHMD", &OculusGazeboNavigator::gz_hmd_orientation_cb, this);
         camera_pose_pub = gazeboNode->Advertise<msgs::Pose>("~/oculus/CameraPose");
     }
 
-    void OculusGazeboNavigator::GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg)
+    void OculusGazeboNavigator::gz_hmd_orientation_cb(const boost::shared_ptr<const msgs::Quaternion> &msg)
     {
         headOrientation = msgs::Convert(*msg);
     }
@@ -296,7 +298,7 @@ namespace gazebo
     bool OculusGazeboNavigator::lookupTfListener()
     {
         try {
-            tfListener.lookupTransform("map", "base_link", ros::Time(0), transform);
+            tfListener.lookupTransform(map_frame, base_link_frame, ros::Time(0), transform);
         } catch (tf::TransformException ex) {
             ROS_ERROR("Active TF Listener failed to get Pose data: %s", ex.what());
             toggleBotTfListenerControlMode();

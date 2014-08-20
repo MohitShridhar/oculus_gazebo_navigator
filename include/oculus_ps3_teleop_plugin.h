@@ -73,6 +73,9 @@
 #define DEFAULT_BOT_MODEL_NAME "robot0"
 #define DEFAULT_BOT_CMD_VEL_TOPIC "robot0/cmd_vel"
 
+#define DEFAULT_MAP_FRAME_NAME "map"
+#define DEFAULT_BASE_LINK_FRAME_NAME "base_link"
+
 // PS3 Controller Buttons:
 #define SELECT 0
 
@@ -148,7 +151,7 @@ namespace gazebo
 		void loadRobotSettings();
 		void checkIfBotExists();
 
-		void GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg);
+		void gz_hmd_orientation_cb(const boost::shared_ptr<const msgs::Quaternion> &msg);
 	    void updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg);
 	    void updateStickStates(const sensor_msgs::Joy::ConstPtr& msg);
 	    void ps3_controller_cb(const sensor_msgs::Joy::ConstPtr& msg);
@@ -218,7 +221,7 @@ namespace gazebo
 	    // Camera & Robot Parameters:
 	 	double max_walking_speed_x, max_walking_speed_y, max_running_speed_x, max_running_speed_y, max_vertical_speed, upper_position_limit, lower_position_limit;  
 	 	double bot_normal_linear_speed, bot_normal_angular_speed, bot_fast_linear_speed, bot_fast_angular_speed, mirror_mode_fixed_z_pos;
-	 	std::string bot_model_name, bot_cmd_vel_topic;
+	 	std::string bot_model_name, bot_cmd_vel_topic, map_frame, base_link_frame;
 	 	bool isBotAvailable;
 	};
 
