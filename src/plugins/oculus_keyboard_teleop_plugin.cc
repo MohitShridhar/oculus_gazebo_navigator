@@ -89,7 +89,6 @@ namespace gazebo
     	this->bodyLink = this->model->GetLink("body");
 
     	this->rosNode = new ros::NodeHandle("/camera_controller");
-    	this->sub_twist = this->rosNode->subscribe<geometry_msgs::Twist>("/camera_controller/twist", 1, &OculusGazeboNavigator::ROSCallbackTwist, this);
 
       	this->updateConnection = event::Events::ConnectWorldUpdateBegin(
         boost::bind(&OculusGazeboNavigator::OnUpdate, this));
@@ -144,8 +143,6 @@ namespace gazebo
     private: rendering::OculusCameraPtr oculusCamera;
 
     private: ros::NodeHandle* rosNode;
-    private: ros::Subscriber sub_twist;
-
     private: transport::SubscriberPtr hmdSub;
 
     private: math::Vector3 cmd_linear_vel, cmd_angular_vel;

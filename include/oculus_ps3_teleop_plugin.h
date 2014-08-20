@@ -129,16 +129,17 @@ namespace gazebo
 		OculusGazeboNavigator();
 		~OculusGazeboNavigator();
 		void Load(physics::ModelPtr _parent, sdf::ElementPtr);
-		void OnUpdate();
-
+		
 	private:
 		void initVars();
 		void parseParams();
-		void setupHMDOrientationSub();
+		void setuphmd_orientation_sub();
 		void establishLinks(physics::ModelPtr _parent);
+		void OnUpdate();
 
 		void GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg);
 	    void updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg);
+	    void updateStickStates(const sensor_msgs::Joy::ConstPtr& msg);
 	    void ps3_controller_cb(const sensor_msgs::Joy::ConstPtr& msg);
 	    void origin_offset_cb(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& msg);
 	 	void updateToggleStates();
@@ -146,7 +147,7 @@ namespace gazebo
 		void updateVels();
 		void updateBotVel();
 		void updateBotVelIsolated();
-		void updateBotVelListener();
+		void updateBotVelMirrored();
 		void updateCameraVel();
 
 		void calibrateBot();
@@ -180,15 +181,15 @@ namespace gazebo
 
 	    ros::NodeHandle* rosNode;
 	    transport::NodePtr gazeboNode;
-	    ros::Subscriber sub_twist, sub_origin_offset;
-	    ros::Publisher pub_cmd_vel, cancel_goal_pub_;
+	    ros::Subscriber joystick_sub, origin_offset_sub;
+	    ros::Publisher bot_cmd_vel_pub, cancel_nav_goal_pub;
 	    std::string botName, topicCmdVel;
 
 	    tf::TransformListener tfListener;
 	    tf::StampedTransform transform;
 
-	    transport::SubscriberPtr hmdOrientationSub;
-	    transport::PublisherPtr pubCameraPose;
+	    transport::SubscriberPtr hmd_orientation_sub;
+	    transport::PublisherPtr camera_pose_pub;
 
 	    math::Vector3 cmd_linear_vel, cmd_hovering_vel;
 	    geometry_msgs::Twist bot_cmd_vel;

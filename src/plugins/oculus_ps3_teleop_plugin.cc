@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-
 #include "oculus_ps3_teleop_plugin.h"
 
 namespace gazebo
@@ -40,7 +39,7 @@ namespace gazebo
     void OculusGazeboNavigator::Load(physics::ModelPtr _parent, sdf::ElementPtr)
     {
         establishLinks(_parent);
-        setupHMDOrientationSub();
+        setuphmd_orientation_sub();
         initVars();
     }
 
@@ -64,13 +63,13 @@ namespace gazebo
         ros::Rate rate(ROS_RATE);
     }
 
-    void OculusGazeboNavigator::setupHMDOrientationSub()
+    void OculusGazeboNavigator::setuphmd_orientation_sub()
     {
         gazeboNode = transport::NodePtr(new transport::Node());
         gazeboNode->Init();
 
-        hmdOrientationSub = gazeboNode->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
-        pubCameraPose = gazeboNode->Advertise<msgs::Pose>("~/oculus/CameraPose");
+        hmd_orientation_sub = gazeboNode->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
+        camera_pose_pub = gazeboNode->Advertise<msgs::Pose>("~/oculus/CameraPose");
     }
 
     void OculusGazeboNavigator::GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg)
@@ -86,11 +85,11 @@ namespace gazebo
         rosNode = new ros::NodeHandle("");
         parseParams();
 
-        sub_twist = rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ps3_controller_cb, this);
-        sub_origin_offset = rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::origin_offset_cb, this);
-        pub_cmd_vel = rosNode->advertise<geometry_msgs::Twist>(topicCmdVel, 50);
+        joystick_sub = rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ps3_controller_cb, this);
+        origin_offset_sub = rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::origin_offset_cb, this);
         
-        cancel_goal_pub_ = rosNode->advertise<actionlib_msgs::GoalID>("/" + botName + "/move_base/cancel", 1);
+        bot_cmd_vel_pub = rosNode->advertise<geometry_msgs::Twist>(topicCmdVel, 50);
+        cancel_nav_goal_pub = rosNode->advertise<actionlib_msgs::GoalID>("/" + botName + "/move_base/cancel", 1);
 
         updateConnection = event::Events::ConnectWorldUpdateBegin(
         boost::bind(&OculusGazeboNavigator::OnUpdate, this));
@@ -114,7 +113,7 @@ namespace gazebo
         // Control Priority 2: Mirrored Navigation (Auto: Bot Teleop | Manual: Oculus Virtual Camera)
         if (isBotTfListenerControlEnabled) {
             updateCameraVel();
-            updateBotVelListener();
+            updateBotVelMirrored();
             return;
         }
 
@@ -159,7 +158,7 @@ namespace gazebo
         bot_cmd_vel.angular.x = 0.0;
         bot_cmd_vel.angular.y = 0.0;
 
-        pub_cmd_vel.publish(bot_cmd_vel);
+        bot_cmd_vel_pub.publish(bot_cmd_vel);
     }
 
 
@@ -182,7 +181,7 @@ namespace gazebo
         bot_cmd_vel.angular.y = 0.0;
         bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_ANGULAR_SPEED : DEFAULT_BOT_ANGULAR_SPEED);
 
-        pub_cmd_vel.publish(bot_cmd_vel);
+        bot_cmd_vel_pub.publish(bot_cmd_vel);
     }
 
 
@@ -191,11 +190,9 @@ namespace gazebo
         Camera (Left joystick -> x, y axis)
     */
 
-    void OculusGazeboNavigator::updateBotVelListener()
+    void OculusGazeboNavigator::updateBotVelMirrored()
     {
-        bool wasLookUpSuccessful = lookupTfListener();
-
-        if (!wasLookUpSuccessful) {
+        if (!lookupTfListener()) {
             ROS_ERROR("Failed to receive data from TF Listener");
             return;
         } 
@@ -326,7 +323,7 @@ namespace gazebo
     {
         // Programmable services based on pose context:
         if (wasActivated(SERVICE_UP_BTN) || wasActivated(SERVICE_DOWN_BTN) || wasActivated(SERVICE_RIGHT_BTN) || wasActivated(SERVICE_LEFT_BTN)) {
-            pubCameraPose->Publish(msgs::Convert(model->GetWorldPose()));
+            camera_pose_pub->Publish(msgs::Convert(model->GetWorldPose()));
         } else {
             return;
         }
@@ -366,9 +363,10 @@ namespace gazebo
         isBotIsoControlEnabled = false;
         isBotTfListenerControlEnabled = false;
 
+        // Cancel current goal before switching back to manual joystick teleop
         if (!isAutoNavEnabled) {
             actionlib_msgs::GoalID emptyReq;
-            cancel_goal_pub_.publish(emptyReq);
+            cancel_nav_goal_pub.publish(emptyReq);
         }
     }
 
@@ -497,14 +495,17 @@ namespace gazebo
         }
     }     
 
-    void OculusGazeboNavigator::ps3_controller_cb(const sensor_msgs::Joy::ConstPtr& msg)
+    void OculusGazeboNavigator::updateStickStates(const sensor_msgs::Joy::ConstPtr& msg)
     {
-        // Get joystick states:
         stickLeftX = msg->axes[0];
         stickLeftY = msg->axes[1];
         stickRightX = msg->axes[2];
         stickRightY = msg->axes[3];
+    }
 
+    void OculusGazeboNavigator::ps3_controller_cb(const sensor_msgs::Joy::ConstPtr& msg)
+    {
+        updateStickStates(msg);
         updateBtnStates(msg);
         updateToggleStates();
     }
