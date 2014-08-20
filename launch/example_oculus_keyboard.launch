@@ -1,0 +1,10 @@
+<launch>
+	<include file="$(find oculus_gazebo_navigator)/launch/oculus_nav_keyboard_op.launch">
+
+	  <arg name="spawn_pos_x" value="6.363270"/>
+	  <arg name="spawn_pos_y" value="-3.420501"/>
+	  <arg name="spawn_pos_z" value="10.356117"/>
+
+	</include>
+
+</launch>
