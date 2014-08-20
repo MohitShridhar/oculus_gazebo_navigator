@@ -1,8 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <model name="camera">
-    <!-- <static>true</static> -->
-
     <link name="camera_link">
       <pose>0 0 0.94 0 0 0</pose>
       <inertial>
@@ -54,13 +52,6 @@
           </box>
         </geometry>
       </collision>
-<!--       <visual name="visual">
-        <geometry>
-          <box>
-            <size>0.2 0.5 1.78</size>
-          </box>
-        </geometry>
-      </visual> -->
     </link>
 
     <joint name="camera_joint" type="revolute">
@@ -75,7 +66,7 @@
       </axis>
     </joint>
 
-    <plugin name="camera_plugin" filename="libps3_oculus_teleop.so"/>
+    <plugin name="oculus_ps3_plugin" filename="liboculus_ps3_plugin.so"/>
 
   </model>
 </sdf>

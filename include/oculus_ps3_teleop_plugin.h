@@ -135,7 +135,7 @@ namespace gazebo
 
 	private: void initVars();
 	private: void parseParams();
-	private: void setupHMDSubscription();
+	private: void setupHMDOrientationSub();
 	private: void establishLinks(physics::ModelPtr _parent);
 
 	private: void GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg);
@@ -148,7 +148,7 @@ namespace gazebo
 	private: void updateBotVel();
 	private: void updateBotVelIsolated();
 	private: void updateBotVelListener();
-	private: void updateFpvVel();
+	private: void updateCameraVel();
 
 	private: void calibrateBot();
 	private: math::Pose transformTo3DOFPose(tf::StampedTransform trans);
@@ -184,8 +184,8 @@ namespace gazebo
     private: tf::TransformListener tfListener;
     private: tf::StampedTransform transform;
 
-    private: transport::SubscriberPtr hmdSub;
-    private: transport::PublisherPtr pubFpvPose;
+    private: transport::SubscriberPtr hmdOrientationSub;
+    private: transport::PublisherPtr pubCameraPose;
 
     private: math::Vector3 cmd_linear_vel, cmd_hovering_vel;
     private: geometry_msgs::Twist bot_cmd_vel;
@@ -199,7 +199,7 @@ namespace gazebo
     private: bool currBtn[16], prevBtn[16];
 
     // World States:
-    private: bool isGravityEnabled, isCollisionEnabled, isXrayVisionEnabled, isBotIsoControlEnabled, isBotTfListenerControlEnabled, isNavStackControlEnabled;
+    private: bool isGravityEnabled, isCollisionEnabled, isXrayVisionEnabled, isBotIsoControlEnabled, isBotTfListenerControlEnabled, isAutoNavEnabled;
 
 	};
 

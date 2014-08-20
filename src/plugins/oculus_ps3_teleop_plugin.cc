@@ -26,7 +26,7 @@ namespace gazebo
 
     OculusGazeboNavigator::OculusGazeboNavigator()
     {
-      std::string name = "oculus_gazebo_navigator";
+      std::string name = "oculus_ps3_gazebo_navigator";
       int argc = 0;
       ros::init(argc, NULL, name);
 
@@ -34,45 +34,44 @@ namespace gazebo
 
     OculusGazeboNavigator::~OculusGazeboNavigator()
     {
-      delete this->rosNode;
+      delete rosNode;
       transport::fini();
     }
 
     void OculusGazeboNavigator::Load(physics::ModelPtr _parent, sdf::ElementPtr)
     {
         establishLinks(_parent);
-        setupHMDSubscription();
+        setupHMDOrientationSub();
         initVars();
     }
 
     void OculusGazeboNavigator::parseParams()
     {
-        this->rosNode->getParam("navigator_bot_name", botName);
-        this->topicCmdVel = "/" + botName + "/cmd_vel";
+        rosNode->getParam("navigator_bot_name", botName);
+        topicCmdVel = "/" + botName + "/cmd_vel";
     }
 
     void OculusGazeboNavigator::initVars()
     {
-        this->isGravityEnabled = true;
-        this->isCollisionEnabled = true;
-        this->isXrayVisionEnabled = false;
-        this->isBotIsoControlEnabled = false;
-        this->isBotTfListenerControlEnabled = false;
-        this->isNavStackControlEnabled = true;
+        isGravityEnabled = true;
+        isCollisionEnabled = true;
+        isXrayVisionEnabled = false;
+        isBotIsoControlEnabled = false;
+        isBotTfListenerControlEnabled = false;
+        isAutoNavEnabled = true;
 
-        this->botOffsetPose = this->model->GetWorld()->GetModel(botName)->GetWorldPose();
+        botOffsetPose = model->GetWorld()->GetModel(botName)->GetWorldPose();
 
         ros::Rate rate(ROS_RATE);
     }
 
-    void OculusGazeboNavigator::setupHMDSubscription()
+    void OculusGazeboNavigator::setupHMDOrientationSub()
     {
-        this->gazeboNode = transport::NodePtr(new transport::Node());
-        this->gazeboNode->Init();
+        gazeboNode = transport::NodePtr(new transport::Node());
+        gazeboNode->Init();
 
-        this->hmdSub = this->gazeboNode->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
-        this->pubFpvPose = this->gazeboNode->Advertise<msgs::Pose>("~/oculus/fpvPose");
-
+        hmdOrientationSub = gazeboNode->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
+        pubCameraPose = gazeboNode->Advertise<msgs::Pose>("~/oculus/CameraPose");
     }
 
     void OculusGazeboNavigator::GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg)
@@ -82,19 +81,19 @@ namespace gazebo
 
     void OculusGazeboNavigator::establishLinks(physics::ModelPtr _parent)
     {
-        this->model = _parent;
-        this->bodyLink = this->model->GetLink("body");
+        model = _parent;
+        bodyLink = model->GetLink("body");
 
-        this->rosNode = new ros::NodeHandle("");
+        rosNode = new ros::NodeHandle("");
         parseParams();
 
-        this->sub_twist = this->rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ROSCallbackJoy, this);
-        this->sub_origin_offset = this->rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::CallbackOriginOffset, this);
-        this->pub_cmd_vel = this->rosNode->advertise<geometry_msgs::Twist>(this->topicCmdVel, 50);
+        sub_twist = rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ROSCallbackJoy, this);
+        sub_origin_offset = rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::CallbackOriginOffset, this);
+        pub_cmd_vel = rosNode->advertise<geometry_msgs::Twist>(topicCmdVel, 50);
         
-        this->cancel_goal_pub_ = this->rosNode->advertise<actionlib_msgs::GoalID>("/" + botName + "/move_base/cancel", 1);
+        cancel_goal_pub_ = rosNode->advertise<actionlib_msgs::GoalID>("/" + botName + "/move_base/cancel", 1);
 
-        this->updateConnection = event::Events::ConnectWorldUpdateBegin(
+        updateConnection = event::Events::ConnectWorldUpdateBegin(
         boost::bind(&OculusGazeboNavigator::OnUpdate, this));
     }
 
@@ -107,29 +106,35 @@ namespace gazebo
 
     void OculusGazeboNavigator::updateVel()
     {
-        // Navigation stack - Bot control:
-        if (this->isNavStackControlEnabled) {
-            updateFpvVel();
+        // Control Priority 1: Autonomous Navigation (Manual: Oculus Virtual Camera)
+        if (isAutoNavEnabled) {
+            updateCameraVel();
             return;
         }
 
-        //Bot control - TF Listener:
-        if (this->isBotTfListenerControlEnabled) {
-            updateFpvVel();
+        // Control Priority 2: Mirrored Navigation (Auto: Bot Teleop | Manual: Oculus Virtual Camera)
+        if (isBotTfListenerControlEnabled) {
+            updateCameraVel();
             updateBotVelListener();
             return;
         }
 
-        //Bot control - Joystick:
-        if (!this->isBotIsoControlEnabled) {
-            updateFpvVel();
-            updateBotVel();
-        } else {
+        // Control Priority 3: Isolated Bot Control (Manual: Bot Teleop)
+        if (isBotIsoControlEnabled) {
             updateBotVelIsolated();
+            return;
         }
+
+        // Control Priority 4: Dual Control System (Manual: Bot Teleop | Manual: Oculus Virtual Camera)
+        updateCameraVel();
+        updateBotVel();
     }
 
-    // Dual controls: FPV & Bot-control (Left joystick -> FPV | Right joystick -> Bot-control)
+
+    /*
+        Dual Control System: Left joystick -> Camera | Right joystick -> Bot-control
+    */
+
     void OculusGazeboNavigator::updateBotVel()
     {
         if (!currBtn[RIGHT_REAR_TAP]) { // linear controls
@@ -158,7 +163,11 @@ namespace gazebo
         pub_cmd_vel.publish(bot_cmd_vel);
     }
 
-    // Isolated Mode: Bot-control (Left joystick -> x,y axis | Right joystick -> yaw)
+
+    /*
+        Isolated Bot Control: Bot-control (Left joystick -> x,y axis | Right joystick -> yaw)
+    */
+
     void OculusGazeboNavigator::updateBotVelIsolated()
     {
         // Mimic "Mecanum wheels" effect:
@@ -177,36 +186,39 @@ namespace gazebo
         pub_cmd_vel.publish(bot_cmd_vel);
     }
 
-    // TF Listener Mode: Bot World-Pose controlled directly via TF
+
+    /*
+        Mirrored Navigation: Bot World-Pose controlled directly via TF, Camera (Left joystick -> x, y axis)
+    */
+
     void OculusGazeboNavigator::updateBotVelListener()
     {
         bool wasLookUpSuccessful = lookupTfListener();
 
         if (!wasLookUpSuccessful) {
-            ROS_ERROR("Failed to receive data from TF Listener\n");
+            ROS_ERROR("Failed to receive data from TF Listener");
             return;
         } 
 
         math::Pose tfRawPose = transformTo3DOFPose(transform);
-        math::Pose gzRotatedPose = tfRawPose.RotatePositionAboutOrigin(this->botOffsetQuat);
+        math::Pose gzRotatedPose = tfRawPose.RotatePositionAboutOrigin(botOffsetQuat);
 
-        gzRotatedPose.pos.x -= this->botOffsetPose.pos.x;
-        gzRotatedPose.pos.y -= this->botOffsetPose.pos.y;
+        gzRotatedPose.pos.x -= botOffsetPose.pos.x;
+        gzRotatedPose.pos.y -= botOffsetPose.pos.y;
         gzRotatedPose.pos.z = BOT_FIXED_Z_POS;
         
         gzRotatedPose.rot = math::Quaternion(0, 0, tfRawPose.rot.GetYaw() + botOffsetQuat.GetYaw());
 
-        this->model->SetWorldPose(gzRotatedPose);
-
+        model->SetWorldPose(gzRotatedPose);
     }
 
     void OculusGazeboNavigator::calibrateBot()
     {
-        this->botOffsetQuat = tfToGzQuat(transform.getRotation()).GetInverse();
+        botOffsetQuat = tfToGzQuat(transform.getRotation()).GetInverse();
         math::Pose tfOriginPose = transformTo3DOFPose(transform);
 
-        this->botOffsetPose = tfOriginPose.RotatePositionAboutOrigin(this->botOffsetQuat);
-        this->botOffsetPose.rot = tfOriginPose.rot;         
+        botOffsetPose = tfOriginPose.RotatePositionAboutOrigin(botOffsetQuat);
+        botOffsetPose.rot = tfOriginPose.rot;         
     }
 
     math::Pose OculusGazeboNavigator::transformTo3DOFPose(tf::StampedTransform trans)
@@ -243,7 +255,7 @@ namespace gazebo
         try {
             tfListener.lookupTransform("map", "base_link", ros::Time(0), transform);
         } catch (tf::TransformException ex) {
-            ROS_ERROR("Active TF Listener failed to get Pose data: %s\n", ex.what());
+            ROS_ERROR("Active TF Listener failed to get Pose data: %s", ex.what());
             toggleBotTfListenerControlMode();
             return false;
         }
@@ -257,14 +269,14 @@ namespace gazebo
         // Toggle Navigation-Stack control mode:
         if (wasActivated(BOT_CONTROL_BTN) && !currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
             toggleNavStackControlMode();
-            printf("Oculus Navigator: Navigation Stack control = %s\n", (isNavStackControlEnabled ? "enabled" : "disabled"));
+            ROS_INFO("Oculus Navigator: Navigation Stack control = %s", (isAutoNavEnabled ? "enabled" : "disabled"));
         }
 
         // Toggle TF-Listener mode & Joystick bot-control:
 
         if (wasActivated(BOT_CONTROL_BTN) && currBtn[RIGHT_REAR_TAP] && !currBtn[LEFT_REAR_TAP]) {
             toggleBotTfListenerControlMode();
-            printf("Oculus Navigator: Bot TF Listener control - %s\n", (isBotTfListenerControlEnabled ? "enabled" : "disabled"));
+            ROS_INFO("Oculus Navigator: Bot TF Listener control - %s", (isBotTfListenerControlEnabled ? "enabled" : "disabled"));
         }
 
         // Calibrate Real-world pos & Gazebo bot origin through manual alignment:
@@ -277,92 +289,91 @@ namespace gazebo
 
         if (wasActivated(GRAVITY_BTN)) {
             toggleGravityMode();
-            printf("Oculus Navigator: Gravity %s\n", (isGravityEnabled ? "enabled" : "disabled"));
+            ROS_INFO("Oculus Navigator: Gravity %s", (isGravityEnabled ? "enabled" : "disabled"));
         }
 
         if (wasActivated(COLLISION_BTN)) {
             toggleCollisionMode();
-            printf("Oculus Navigator: Collision-mode %s\n", (isCollisionEnabled ? "enabled" : "disabled"));
+            ROS_INFO("Oculus Navigator: Collision-mode %s", (isCollisionEnabled ? "enabled" : "disabled"));
         }
 
         if (wasActivated(XRAY_BTN)) {
             toggleXrayMode();
-            printf("Oculus Navigator: X-Ray mode %s\n", (isXrayVisionEnabled ? "enabled" : "disabled"));
+            ROS_INFO("Oculus Navigator: X-Ray mode %s", (isXrayVisionEnabled ? "enabled" : "disabled"));
         }
 
         // Bot-control:
 
         if (wasActivated(BOT_CONTROL_BTN) && currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
             toggleBotIsoControlMode();
-            printf("Oculus Navigator: Bot-Control mode %s, Fpv Navigator %s\n", (isBotIsoControlEnabled ? "enabled" : "disabled"), (isBotIsoControlEnabled ? "disabled" : "enabled"));
+            ROS_INFO("Oculus Navigator: Bot-Control mode %s, Camera Navigator %s", (isBotIsoControlEnabled ? "enabled" : "disabled"), (isBotIsoControlEnabled ? "disabled" : "enabled"));
         }
 
         if (wasActivated(BOT_RESET_BTN) && !currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
             resetBot();
-            printf("Oculus Navigator: '%s' reset to offset pose\n", botName.c_str());
+            ROS_INFO("Oculus Navigator: '%s' reset to offset pose", botName.c_str());
         }
 
         // Programmable services based on pose context:
 
         if (wasActivated(SERVICE_UP_BTN) || wasActivated(SERVICE_DOWN_BTN) || wasActivated(SERVICE_RIGHT_BTN) || wasActivated(SERVICE_LEFT_BTN)) {
-            this->pubFpvPose->Publish(msgs::Convert(this->model->GetWorldPose()));
+            pubCameraPose->Publish(msgs::Convert(model->GetWorldPose()));
         } else {
-            return; // no service was required
+            return;
         }
 
         if (wasActivated(SERVICE_UP_BTN)) {
-            transport::requestNoReply(this->gazeboNode->GetTopicNamespace(), REQUEST_UP_BTN, "all");
+            transport::requestNoReply(gazeboNode->GetTopicNamespace(), REQUEST_UP_BTN, "all");
         }
 
         if (wasActivated(SERVICE_DOWN_BTN)) {
-            transport::requestNoReply(this->gazeboNode->GetTopicNamespace(), REQUEST_DOWN_BTN, "all");
+            transport::requestNoReply(gazeboNode->GetTopicNamespace(), REQUEST_DOWN_BTN, "all");
         }
 
         if (wasActivated(SERVICE_RIGHT_BTN)) {
-            transport::requestNoReply(this->gazeboNode->GetTopicNamespace(), REQUEST_RIGHT_BTN, "all");
+            transport::requestNoReply(gazeboNode->GetTopicNamespace(), REQUEST_RIGHT_BTN, "all");
         }
 
         if (wasActivated(SERVICE_LEFT_BTN)) {
-            transport::requestNoReply(this->gazeboNode->GetTopicNamespace(), REQUEST_LEFT_BTN, "all");
+            transport::requestNoReply(gazeboNode->GetTopicNamespace(), REQUEST_LEFT_BTN, "all");
         }
-
     }
 
     void OculusGazeboNavigator::resetBot()
     {
-        this->model->GetWorld()->GetModel(botName)->SetWorldPose(botOffsetPose);
+        model->GetWorld()->GetModel(botName)->SetWorldPose(botOffsetPose);
     }
 
     void OculusGazeboNavigator::toggleBotIsoControlMode()
     {
         isBotIsoControlEnabled = !isBotIsoControlEnabled;
         isBotTfListenerControlEnabled = false;
-        isNavStackControlEnabled = false;
+        isAutoNavEnabled = false;
     }
 
     void OculusGazeboNavigator::toggleNavStackControlMode()
     {
-        isNavStackControlEnabled = !isNavStackControlEnabled;
+        isAutoNavEnabled = !isAutoNavEnabled;
         isBotIsoControlEnabled = false;
         isBotTfListenerControlEnabled = false;
 
-        if (!isNavStackControlEnabled) {
+        if (!isAutoNavEnabled) {
             actionlib_msgs::GoalID emptyReq;
-            this->cancel_goal_pub_.publish(emptyReq);
+            cancel_goal_pub_.publish(emptyReq);
         }
     }
 
     void OculusGazeboNavigator::toggleBotTfListenerControlMode()
     {
         isBotTfListenerControlEnabled = !isBotTfListenerControlEnabled;
-        isNavStackControlEnabled = false;
+        isAutoNavEnabled = false;
         isBotIsoControlEnabled = false;
     }
 
     void OculusGazeboNavigator::toggleGravityMode()
     {
         isGravityEnabled = !isGravityEnabled;
-        this->model->SetGravityMode(isGravityEnabled);
+        model->SetGravityMode(isGravityEnabled);
     }
 
     float OculusGazeboNavigator::computeHoverVelocity(float currVerticalVel)
@@ -385,9 +396,9 @@ namespace gazebo
         isCollisionEnabled = !isCollisionEnabled;
 
         if (isCollisionEnabled) {
-            this->bodyLink->SetCollideMode("all");
+            bodyLink->SetCollideMode("all");
         } else {
-            this->bodyLink->SetCollideMode("none");
+            bodyLink->SetCollideMode("none");
         }
 
     }
@@ -397,9 +408,9 @@ namespace gazebo
         isXrayVisionEnabled = !isXrayVisionEnabled;
 
         if (isXrayVisionEnabled) {
-            transport::requestNoReply(this->gazeboNode->GetTopicNamespace(), "set_transparent", "world");
+            transport::requestNoReply(gazeboNode->GetTopicNamespace(), "set_transparent", "world");
         } else {
-            transport::requestNoReply(this->gazeboNode->GetTopicNamespace(), "set_opaque", "world");
+            transport::requestNoReply(gazeboNode->GetTopicNamespace(), "set_opaque", "world");
         }
     }
 
@@ -413,15 +424,15 @@ namespace gazebo
         return false;
     }
 
-    void OculusGazeboNavigator::updateFpvVel()
+    void OculusGazeboNavigator::updateCameraVel()
     {   
-        math::Vector3 currLinearVel = this->bodyLink->GetRelativeLinearVel();
+        math::Vector3 currLinearVel = bodyLink->GetRelativeLinearVel();
         math::Vector3 newLinearVel = computeVelocities(currLinearVel);
 
         currLinearVel = constrainVerticalMovement(currLinearVel);
         currLinearVel.z = computeHoverVelocity(currLinearVel.z);
 
-        this->bodyLink->SetLinearVel(math::Vector3(newLinearVel.x, newLinearVel.y, currLinearVel.z));
+        bodyLink->SetLinearVel(math::Vector3(newLinearVel.x, newLinearVel.y, currLinearVel.z));
     }
 
     math::Vector3 OculusGazeboNavigator::constrainVerticalMovement(math::Vector3 currLinearVel)
@@ -455,7 +466,7 @@ namespace gazebo
 
     void OculusGazeboNavigator::stabilize()
     {
-        math::Pose currPose = this->model->GetWorldPose();
+        math::Pose currPose = model->GetWorldPose();
         math::Vector3 currPosition = currPose.pos;
 
         math::Pose stabilizedPose;
@@ -474,7 +485,7 @@ namespace gazebo
         // stabilizedPose.rot.w = currPose.rot.w; 
         stabilizedPose.rot.z = 0.0;
 
-        this->model->SetWorldPose(stabilizedPose);    
+        model->SetWorldPose(stabilizedPose);    
     }  
 
     void OculusGazeboNavigator::updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg)
@@ -550,7 +561,7 @@ namespace gazebo
         transform.setRotation(tf::Quaternion(originPose.orientation.x, originPose.orientation.y, originPose.orientation.z, originPose.orientation.w));
 
         calibrateBot();
-        printf("Initial TF Origin pose - POS: %f %f %f\n ROT: %f %f %f %f\n", transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z(), transform.getRotation().x(), transform.getRotation().y(), transform.getRotation().z(), transform.getRotation().w());
+        ROS_INFO("Initial TF Origin pose - POS: %f %f %f ROT: %f %f %f %f", transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z(), transform.getRotation().x(), transform.getRotation().y(), transform.getRotation().z(), transform.getRotation().w());
     }
 
 }
