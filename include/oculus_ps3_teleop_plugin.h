@@ -51,7 +51,7 @@
 #include <tf/transform_listener.h>
 
 // Camera Default Settings:
-#define DEFAULT_WAKING_SPEED_X 2.0 // in m/s
+#define DEFAULT_WALKING_SPEED_X 2.0 // in m/s
 #define DEFAULT_WALKING_SPEED_Y 1.5
 
 #define DEFAULT_RUNNING_SPEED_X 4.0
@@ -69,6 +69,9 @@
 
 #define DEFAULT_BOT_FAST_LINEAR_SPEED 1.1
 #define DEFAULT_BOT_FAST_ANGULAR_SPEED  1.60 
+
+#define DEFAULT_BOT_MODEL_NAME "robot0"
+#define DEFAULT_BOT_CMD_VEL_TOPIC "robot0/cmd_vel"
 
 // PS3 Controller Buttons:
 #define SELECT 0
@@ -118,6 +121,10 @@
 #define REQUEST_RIGHT_BTN "right_btn"
 #define REQUEST_LEFT_BTN "left_btn"
 
+// Parameter namespaces:
+#define PARAM_NAMESPACE_CAMERA "/oculus_gazebo_navigator/ps3_teleop/camera/"
+#define PARAM_NAMESPACE_ROBOT "/oculus_gazebo_navigator/ps3_teleop/robot/"
+
 // Other constants:
 #define ROS_RATE 10.0
 
@@ -132,10 +139,14 @@ namespace gazebo
 		
 	private:
 		void initVars();
-		void parseParams();
 		void setuphmd_orientation_sub();
 		void establishLinks(physics::ModelPtr _parent);
 		void OnUpdate();
+
+		void loadParams();
+		void loadCameraSettings();
+		void loadRobotSettings();
+		void checkIfBotExists();
 
 		void GzHMDCallback(const boost::shared_ptr<const msgs::Quaternion> &msg);
 	    void updateBtnStates(const sensor_msgs::Joy::ConstPtr& msg);
@@ -173,17 +184,16 @@ namespace gazebo
 	    math::Vector3 constrainVerticalMovement(math::Vector3 currLinearVel);
 	    bool isStrayVerticalVel(math::Vector3 currLinearVel);
 	    math::Vector3 computeVelocities(math::Vector3 currLinearVel);
-	    void stabilize();
+	    void stabilizeCamera();
 
 	private:
-	    physics::ModelPtr model;
+	    physics::ModelPtr model, botPtr;
 	    physics::LinkPtr bodyLink;
 
 	    ros::NodeHandle* rosNode;
 	    transport::NodePtr gazeboNode;
 	    ros::Subscriber joystick_sub, origin_offset_sub;
 	    ros::Publisher bot_cmd_vel_pub, cancel_nav_goal_pub;
-	    std::string botName, topicCmdVel;
 
 	    tf::TransformListener tfListener;
 	    tf::StampedTransform transform;
@@ -205,6 +215,11 @@ namespace gazebo
 	    // World States:
 	    bool isGravityEnabled, isCollisionEnabled, isXrayVisionEnabled, isBotIsoControlEnabled, isBotTfListenerControlEnabled, isAutoNavEnabled;
 
+	    // Camera & Robot Parameters:
+	 	double max_walking_speed_x, max_walking_speed_y, max_running_speed_x, max_running_speed_y, max_vertical_speed, upper_position_limit, lower_position_limit;  
+	 	double bot_normal_linear_speed, bot_normal_angular_speed, bot_fast_linear_speed, bot_fast_angular_speed, mirror_mode_fixed_z_pos;
+	 	std::string bot_model_name, bot_cmd_vel_topic;
+	 	bool isBotAvailable;
 	};
 
 	GZ_REGISTER_MODEL_PLUGIN(OculusGazeboNavigator)

@@ -50,105 +50,110 @@ namespace gazebo
   class OculusGazeboNavigator : public ModelPlugin
   {
 
-    public: OculusGazeboNavigator()
-    {
-      std::string name = "oculus_gazebo_navigator";
-      int argc = 0;
-      ros::init(argc, NULL, name);
+    public: 
+        OculusGazeboNavigator()
+        {
+          std::string name = "oculus_gazebo_navigator";
+          int argc = 0;
+          ros::init(argc, NULL, name);
 
-    }
+        }
 
-    public: ~OculusGazeboNavigator()
-    {
-      delete this->rosNode;
-      transport::fini();
-    }
+        ~OculusGazeboNavigator()
+        {
+          delete this->rosNode;
+          transport::fini();
+        }
 
-    public: void Load(physics::ModelPtr _parent, sdf::ElementPtr)
-    {
-    	establishLinks(_parent);
-    	setupHMDSubscription();
-    }
 
-    private: void setupHMDSubscription()
-    {
-    	transport::NodePtr node(new transport::Node());
-  		node->Init();
+        void Load(physics::ModelPtr _parent, sdf::ElementPtr)
+        {
+        	establishLinks(_parent);
+        	setupHMDSubscription();
+        }
 
-  		this->hmdSub = node->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
-    }
+    private: 
+        void setupHMDSubscription()
+        {
+        	transport::NodePtr node(new transport::Node());
+      		node->Init();
 
-    private: void GzHMDCallback(QuaternionPtr &msg)
-    {
-    	headOrientation = msgs::Convert(*msg);
-    }
+      		this->hmdSub = node->Subscribe("~/oculusHMD", &OculusGazeboNavigator::GzHMDCallback, this);
+        }
 
-    private: void establishLinks(physics::ModelPtr _parent)
-    {
-    	this->model = _parent;
-    	this->bodyLink = this->model->GetLink("body");
+        void GzHMDCallback(QuaternionPtr &msg)
+        {
+        	headOrientation = msgs::Convert(*msg);
+        }
 
-    	this->rosNode = new ros::NodeHandle("/camera_controller");
+        void establishLinks(physics::ModelPtr _parent)
+        {
+        	this->model = _parent;
+        	this->bodyLink = this->model->GetLink("body");
 
-      	this->updateConnection = event::Events::ConnectWorldUpdateBegin(
-        boost::bind(&OculusGazeboNavigator::OnUpdate, this));
-    }
+        	this->rosNode = new ros::NodeHandle("/camera_controller");
 
-    public: void OnUpdate()
-    {
-    	ros::spinOnce();
-    	updateVels();
-    	Stabilize();
-    }
+          	this->updateConnection = event::Events::ConnectWorldUpdateBegin(
+            boost::bind(&OculusGazeboNavigator::OnUpdate, this));
+        }
 
-    private: void updateVels()
-    {	
-    	math::Vector3 currLinearVel = this->bodyLink->GetRelativeLinearVel();
-    	// math::Vector3 currAngularVel = this->bodyLink->GetRelativeAngularVel();
+        void OnUpdate()
+        {
+        	ros::spinOnce();
+        	updateVels();
+        	Stabilize();
+        }
 
-    	// math::Quaternion headOrientation = this->oculusCamera->GetWorldRotation();
-    	math::Vector3 newLinearVel = headOrientation.RotateVector(cmd_linear_vel);
+        void updateVels()
+        {	
+        	math::Vector3 currLinearVel = this->bodyLink->GetRelativeLinearVel();
+        	// math::Vector3 currAngularVel = this->bodyLink->GetRelativeAngularVel();
 
-    	this->bodyLink->SetLinearVel(math::Vector3(newLinearVel.x, newLinearVel.y, currLinearVel.z));
-    	// this->bodyLink->SetAngularVel(math::Vector3(0, 0, cmd_angular_vel.z));
-    }
+        	// math::Quaternion headOrientation = this->oculusCamera->GetWorldRotation();
+        	math::Vector3 newLinearVel = headOrientation.RotateVector(cmd_linear_vel);
 
-    private: void Stabilize()
-    {
-    	math::Pose currPose = this->model->GetWorldPose();
-    	math::Vector3 currPosition = currPose.pos;
+        	this->bodyLink->SetLinearVel(math::Vector3(newLinearVel.x, newLinearVel.y, currLinearVel.z));
+        	// this->bodyLink->SetAngularVel(math::Vector3(0, 0, cmd_angular_vel.z));
+        }
 
-    	math::Pose stabilizedPose;
-    	stabilizedPose.pos = currPosition;
+        void Stabilize()
+        {
+        	math::Pose currPose = this->model->GetWorldPose();
+        	math::Vector3 currPosition = currPose.pos;
 
-    	stabilizedPose.rot.x = 0;
-    	stabilizedPose.rot.y = 0;
+        	math::Pose stabilizedPose;
+        	stabilizedPose.pos = currPosition;
 
-    	stabilizedPose.rot.z = currPose.rot.z;
+        	stabilizedPose.rot.x = 0;
+        	stabilizedPose.rot.y = 0;
 
-    	this->model->SetWorldPose(stabilizedPose);    
-    }
+        	stabilizedPose.rot.z = currPose.rot.z;
 
-    private: void ROSCallbackTwist(const geometry_msgs::Twist::ConstPtr& msg)
-    {
-    	// Movements constricted to z plane:
-    	cmd_linear_vel.x = msg->linear.x;
-    	cmd_linear_vel.y = msg->linear.y;
+        	this->model->SetWorldPose(stabilizedPose);    
+        }
 
-    	cmd_angular_vel.z = msg->angular.z;
-    }
+        void ROSCallbackTwist(const geometry_msgs::Twist::ConstPtr& msg)
+        {
+        	// Movements constricted to z plane:
+        	cmd_linear_vel.x = msg->linear.x;
+        	cmd_linear_vel.y = msg->linear.y;
 
-    private: physics::ModelPtr model;
-    private: physics::LinkPtr bodyLink;
-    private: rendering::OculusCameraPtr oculusCamera;
+        	cmd_angular_vel.z = msg->angular.z;
+        }
 
-    private: ros::NodeHandle* rosNode;
-    private: transport::SubscriberPtr hmdSub;
+    private:
+        
+        physics::ModelPtr model;
+        physics::LinkPtr bodyLink;
+        rendering::OculusCameraPtr oculusCamera;
 
-    private: math::Vector3 cmd_linear_vel, cmd_angular_vel;
-    private: math::Quaternion headOrientation;
+        ros::NodeHandle* rosNode;
+        transport::SubscriberPtr hmdSub;
 
-   	private: event::ConnectionPtr updateConnection;
+        math::Vector3 cmd_linear_vel, cmd_angular_vel;
+        math::Quaternion headOrientation;
+
+       	event::ConnectionPtr updateConnection;
 
   };
 

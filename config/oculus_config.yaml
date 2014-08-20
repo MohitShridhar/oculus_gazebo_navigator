@@ -1,0 +1,31 @@
+keyboard_teleop:
+    camera:
+        walking_speed: 5
+        running_speed: 8
+        rotating_speed: 1.57
+    others:
+        sampling_duration: 40000 # in microseconds. The interval during which the keyboard input is acquired
+
+ps3_teleop:
+    camera:
+        max_walking_speed_x: 2.0
+        max_walking_speed_y: 1.5
+
+        max_running_speed_x: 4.0
+        max_running_speed_y: 3.0
+
+        max_vertical_speed: 1.0
+        upper_position_limit: 41.0 # in meters
+        lower_position_limit: 2.52
+
+    robot:
+        model_name: sesto0
+        cmd_vel_topic: sesto0/cmd_vel # can also be remapped later
+
+        normal_linear_speed: 0.4
+        normal_angular_speed: 0.785 # rad/s 
+
+        fast_linear_speed: 1.1
+        fast_angular_speed: 1.60
+
+        mirror_mode_fixed_z_pos: 0.79

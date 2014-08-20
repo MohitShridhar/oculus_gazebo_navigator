@@ -43,10 +43,52 @@ namespace gazebo
         initVars();
     }
 
-    void OculusGazeboNavigator::parseParams()
+    void OculusGazeboNavigator::loadParams()
     {
-        rosNode->getParam("navigator_bot_name", botName);
-        topicCmdVel = "/" + botName + "/cmd_vel";
+        loadCameraSettings();
+        loadRobotSettings();
+        checkIfBotExists();
+    }
+
+    void OculusGazeboNavigator::checkIfBotExists()
+    {
+        botPtr = model->GetWorld()->GetModel(bot_model_name); 
+        botPtr == NULL ? isBotAvailable = false : isBotAvailable = true;
+
+        if (bot_model_name.compare(DEFAULT_BOT_MODEL_NAME) != 0 && !isBotAvailable) {
+            ROS_WARN("You have specified a robot model_name for teleop, but the model doesn't seem to exist in Gazebo. Check that the model actually exists, and also ensure that the oculus_gazebo_navigator node is spawned after Gazebo has finished loading the robot model. If this warning persists, you might want to add a '- wait <your_bot_name>' gazebo_ros-spawn-paramter to the oculus rift sdf file");
+        }
+    }
+
+    void OculusGazeboNavigator::loadCameraSettings()
+    {
+        std::string param_namespace_camera_str = PARAM_NAMESPACE_CAMERA;
+
+        rosNode->param<double>(param_namespace_camera_str + "max_walking_speed_x" , max_walking_speed_x, DEFAULT_WALKING_SPEED_X);
+        rosNode->param<double>(param_namespace_camera_str + "max_walking_speed_y" , max_walking_speed_y, DEFAULT_WALKING_SPEED_Y);
+
+        rosNode->param<double>(param_namespace_camera_str + "max_running_speed_x" , max_running_speed_x, DEFAULT_RUNNING_SPEED_X);
+        rosNode->param<double>(param_namespace_camera_str + "max_running_speed_y" , max_running_speed_y, DEFAULT_RUNNING_SPEED_Y);
+
+        rosNode->param<double>(param_namespace_camera_str + "max_vertical_speed" , max_vertical_speed, DEFAULT_VERTICAL_SPEED);
+        rosNode->param<double>(param_namespace_camera_str + "upper_position_limit" , upper_position_limit, DEFAULT_LIMIT_UPPER_POS);
+        rosNode->param<double>(param_namespace_camera_str + "lower_position_limit" , lower_position_limit, DEFAULT_LIMIT_LOWER_POS);
+    }
+
+    void OculusGazeboNavigator::loadRobotSettings()
+    {
+        std::string param_namespace_robot_str = PARAM_NAMESPACE_ROBOT;
+
+        rosNode->param<std::string>(param_namespace_robot_str + "model_name" , bot_model_name, DEFAULT_BOT_MODEL_NAME);
+        rosNode->param<std::string>(param_namespace_robot_str + "cmd_vel_topic" , bot_cmd_vel_topic, DEFAULT_BOT_CMD_VEL_TOPIC);
+
+        rosNode->param<double>(param_namespace_robot_str + "normal_linear_speed" , bot_normal_linear_speed, DEFAULT_BOT_LINEAR_SPEED);
+        rosNode->param<double>(param_namespace_robot_str + "normal_angular_speed" , bot_normal_angular_speed, DEFAULT_BOT_ANGULAR_SPEED);
+
+        rosNode->param<double>(param_namespace_robot_str + "fast_linear_speed" , bot_fast_linear_speed, DEFAULT_BOT_FAST_LINEAR_SPEED);
+        rosNode->param<double>(param_namespace_robot_str + "fast_angular_speed" , bot_fast_angular_speed, DEFAULT_BOT_FAST_ANGULAR_SPEED);
+
+        rosNode->param<double>(param_namespace_robot_str + "mirror_mode_fixed_z_pos" , mirror_mode_fixed_z_pos, DEFAULT_BOT_MIRROR_MODE_FIXED_Z_POS);
     }
 
     void OculusGazeboNavigator::initVars()
@@ -58,7 +100,9 @@ namespace gazebo
         isBotTfListenerControlEnabled = false;
         isAutoNavEnabled = true;
 
-        botOffsetPose = model->GetWorld()->GetModel(botName)->GetWorldPose();
+        if (isBotAvailable) {
+            botOffsetPose = botPtr->GetWorldPose();
+        }
 
         ros::Rate rate(ROS_RATE);
     }
@@ -83,13 +127,15 @@ namespace gazebo
         bodyLink = model->GetLink("body");
 
         rosNode = new ros::NodeHandle("");
-        parseParams();
+        loadParams();
 
         joystick_sub = rosNode->subscribe<sensor_msgs::Joy>("/joy0", 50, &OculusGazeboNavigator::ps3_controller_cb, this);
-        origin_offset_sub = rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::origin_offset_cb, this);
         
-        bot_cmd_vel_pub = rosNode->advertise<geometry_msgs::Twist>(topicCmdVel, 50);
-        cancel_nav_goal_pub = rosNode->advertise<actionlib_msgs::GoalID>("/" + botName + "/move_base/cancel", 1);
+        if (isBotAvailable) {
+            origin_offset_sub = rosNode->subscribe<geometry_msgs::PoseWithCovarianceStamped>("/gazebo_offset", 2, &OculusGazeboNavigator::origin_offset_cb, this); 
+            bot_cmd_vel_pub = rosNode->advertise<geometry_msgs::Twist>(bot_cmd_vel_topic, 50);
+            cancel_nav_goal_pub = rosNode->advertise<actionlib_msgs::GoalID>("/" + bot_model_name + "/move_base/cancel", 1);
+        }
 
         updateConnection = event::Events::ConnectWorldUpdateBegin(
         boost::bind(&OculusGazeboNavigator::OnUpdate, this));
@@ -99,13 +145,13 @@ namespace gazebo
     {
         ros::spinOnce();
         updateVels();
-        stabilize();
+        stabilizeCamera();
     }
 
     void OculusGazeboNavigator::updateVels()
     {
-        // Control Priority 1: Autonomous Navigation (Manual: Oculus Virtual Camera)
-        if (isAutoNavEnabled) {
+        // Control Priority 1: Autonomous Navigation (Manual: Oculus Virtual Camera) OR If a robot is not available for teleop
+        if (isAutoNavEnabled || !isBotAvailable) {
             updateCameraVel();
             return;
         }
@@ -138,11 +184,11 @@ namespace gazebo
         if (!currBtn[RIGHT_REAR_TAP]) { // linear controls
 
             if (fabs(stickRightY) > fabs(stickRightX)) {
-                bot_cmd_vel.linear.x = stickRightY * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_LINEAR_SPEED : DEFAULT_BOT_LINEAR_SPEED);
+                bot_cmd_vel.linear.x = stickRightY * (currBtn[LEFT_REAR_TAP] ? bot_fast_linear_speed : bot_normal_linear_speed);
                 bot_cmd_vel.linear.y = 0.0;            
             } else {
                 bot_cmd_vel.linear.x = 0.0;
-                bot_cmd_vel.linear.y = -stickRightX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_LINEAR_SPEED : DEFAULT_BOT_LINEAR_SPEED);
+                bot_cmd_vel.linear.y = -stickRightX * (currBtn[LEFT_REAR_TAP] ? bot_fast_linear_speed : bot_normal_linear_speed);
             }
 
             bot_cmd_vel.angular.z = 0.0;
@@ -152,7 +198,7 @@ namespace gazebo
             bot_cmd_vel.linear.x = 0.0;
             bot_cmd_vel.linear.y = 0.0;
 
-            bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_ANGULAR_SPEED : DEFAULT_BOT_ANGULAR_SPEED);
+            bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? bot_fast_angular_speed : bot_normal_angular_speed);
         }
 
         bot_cmd_vel.angular.x = 0.0;
@@ -170,16 +216,16 @@ namespace gazebo
     {
         // Mimic "Mecanum wheels" effect:
         if (fabs(stickLeftY) > fabs(stickLeftX)) {
-            bot_cmd_vel.linear.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_LINEAR_SPEED : DEFAULT_BOT_LINEAR_SPEED);
+            bot_cmd_vel.linear.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? bot_fast_linear_speed : bot_normal_linear_speed);
             bot_cmd_vel.linear.y = 0.0;
         } else {
             bot_cmd_vel.linear.x = 0.0;
-            bot_cmd_vel.linear.y = -stickLeftX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_LINEAR_SPEED : DEFAULT_BOT_LINEAR_SPEED);
+            bot_cmd_vel.linear.y = -stickLeftX * (currBtn[LEFT_REAR_TAP] ? bot_fast_linear_speed : bot_normal_linear_speed);
         }
 
         bot_cmd_vel.angular.x = 0.0;
         bot_cmd_vel.angular.y = 0.0;
-        bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_BOT_FAST_ANGULAR_SPEED : DEFAULT_BOT_ANGULAR_SPEED);
+        bot_cmd_vel.angular.z = -stickRightX * (currBtn[LEFT_REAR_TAP] ? bot_fast_angular_speed : bot_normal_angular_speed);
 
         bot_cmd_vel_pub.publish(bot_cmd_vel);
     }
@@ -202,7 +248,7 @@ namespace gazebo
 
         gzRotatedPose.pos.x -= botOffsetPose.pos.x;
         gzRotatedPose.pos.y -= botOffsetPose.pos.y;
-        gzRotatedPose.pos.z = DEFAULT_BOT_MIRROR_MODE_FIXED_Z_POS; // Note: under 'Mirrored Navigation' mode, the bot constrained to the x-y plane due the nature of the TF data produced from a flat static map
+        gzRotatedPose.pos.z = mirror_mode_fixed_z_pos; // Note: under 'Mirrored Navigation' mode, the bot constrained to the x-y plane due the nature of the TF data produced from a flat static map
         
         gzRotatedPose.rot = math::Quaternion(0, 0, tfRawPose.rot.GetYaw() + botOffsetQuat.GetYaw());
 
@@ -315,7 +361,7 @@ namespace gazebo
 
         if (wasActivated(BOT_RESET_BTN) && !currBtn[LEFT_REAR_TAP] && !currBtn[RIGHT_REAR_TAP]) {
             resetBot();
-            ROS_INFO("Oculus Navigator: '%s' reset to offset pose", botName.c_str());
+            ROS_INFO("Oculus Navigator: '%s' reset to offset pose", bot_model_name.c_str());
         }
     }
 
@@ -347,7 +393,7 @@ namespace gazebo
 
     void OculusGazeboNavigator::resetBot()
     {
-        model->GetWorld()->GetModel(botName)->SetWorldPose(botOffsetPose);
+        botPtr->SetWorldPose(botOffsetPose);
     }
 
     void OculusGazeboNavigator::toggleBotIsoControlMode()
@@ -387,9 +433,9 @@ namespace gazebo
     {
         if (!isGravityEnabled) {
             if (currBtn[HOVER_DOWN_BTN]) {
-                currVerticalVel = -DEFAULT_VERTICAL_SPEED;
+                currVerticalVel = -max_vertical_speed;
             } else if (currBtn[HOVER_UP_BTN]) {
-                currVerticalVel = DEFAULT_VERTICAL_SPEED;
+                currVerticalVel = max_vertical_speed;
             } else if (currBtn[HOVER_STEADY_BTN]) {
                 currVerticalVel = 0;
             }
@@ -453,14 +499,14 @@ namespace gazebo
 
     bool OculusGazeboNavigator::isStrayVerticalVel(math::Vector3 currLinearVel)
     {
-        return (currLinearVel.z > 0.0 && (fabs(currLinearVel.x) > (currBtn[LEFT_REAR_TAP] ? DEFAULT_RUNNING_SPEED_X/2 : DEFAULT_WAKING_SPEED_X/2) || fabs(currLinearVel.y) > (currBtn[LEFT_REAR_TAP] ? DEFAULT_RUNNING_SPEED_Y/2 : DEFAULT_WALKING_SPEED_Y/2))) && isGravityEnabled;
+        return (currLinearVel.z > 0.0 && (fabs(currLinearVel.x) > (currBtn[LEFT_REAR_TAP] ? max_running_speed_x/2 : max_walking_speed_x/2) || fabs(currLinearVel.y) > (currBtn[LEFT_REAR_TAP] ? max_running_speed_y/2 : max_walking_speed_y/2))) && isGravityEnabled;
     }
 
     math::Vector3 OculusGazeboNavigator::computeVelocities(math::Vector3 currLinearVel)
     {
         // Gazebo's coordinate system is flipped i.e. [x->y]:
-        cmd_linear_vel.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? DEFAULT_RUNNING_SPEED_X : DEFAULT_WAKING_SPEED_X); 
-        cmd_linear_vel.y = -stickLeftX * (currBtn[LEFT_REAR_TAP] ? DEFAULT_RUNNING_SPEED_Y : DEFAULT_WALKING_SPEED_Y);
+        cmd_linear_vel.x = stickLeftY * (currBtn[LEFT_REAR_TAP] ? max_running_speed_x : max_walking_speed_x); 
+        cmd_linear_vel.y = -stickLeftX * (currBtn[LEFT_REAR_TAP] ? max_running_speed_y : max_walking_speed_y);
         cmd_linear_vel.z = 0;
 
         // Rotate velocity vector according to the head orientation:
@@ -470,7 +516,7 @@ namespace gazebo
         return newLinearVel;
     }
 
-    void OculusGazeboNavigator::stabilize()
+    void OculusGazeboNavigator::stabilizeCamera()
     {
         math::Pose currPose = model->GetWorldPose();
         math::Vector3 currPosition = currPose.pos;
@@ -478,11 +524,15 @@ namespace gazebo
         math::Pose stabilizedPose;
         stabilizedPose.pos = currPosition;
 
-        if (!isGravityEnabled && currPosition.z > DEFAULT_LIMIT_UPPER_POS) {
-            stabilizedPose.pos.z = DEFAULT_LIMIT_UPPER_POS;
-        } else if (!isCollisionEnabled && currPosition.z < DEFAULT_LIMIT_LOWER_POS) {
-            stabilizedPose.pos.z = DEFAULT_LIMIT_LOWER_POS;
+        if (!isGravityEnabled && currPosition.z > upper_position_limit) {
+            stabilizedPose.pos.z = upper_position_limit;
+        } else if (!isCollisionEnabled && currPosition.z < lower_position_limit) {
+            stabilizedPose.pos.z = lower_position_limit;
         }
+
+        stabilizedPose.rot.x = 0.0;
+        stabilizedPose.rot.y = 0.0;
+        stabilizedPose.rot.z = 0.0;
 
         model->SetWorldPose(stabilizedPose);    
     }  
