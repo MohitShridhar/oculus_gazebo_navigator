@@ -61,6 +61,8 @@
 #define DEFAULT_LIMIT_UPPER_POS 41.0 // in meters
 #define DEFAULT_LIMIT_LOWER_POS 2.52
 
+#define DEFAULT_TRANSPARENT_OBJ "world"
+
 // Bot-Control Default Settings:
 #define DEFAULT_BOT_MIRROR_MODE_FIXED_Z_POS 0.79
 
@@ -178,6 +180,7 @@ namespace gazebo
 		void toggleCollisionMode();	
 		void toggleXrayMode();
 		bool wasActivated(uint btnRef);
+		std::vector<std::string> parseTransparentObjStr(std::string transparent_obj_str);
 
 		void checkModeChanges();
 		void checkWorldPropChanges();
@@ -221,7 +224,8 @@ namespace gazebo
 	    // Camera & Robot Parameters:
 	 	double max_walking_speed_x, max_walking_speed_y, max_running_speed_x, max_running_speed_y, max_vertical_speed, upper_position_limit, lower_position_limit;  
 	 	double bot_normal_linear_speed, bot_normal_angular_speed, bot_fast_linear_speed, bot_fast_angular_speed, mirror_mode_fixed_z_pos;
-	 	std::string bot_model_name, bot_cmd_vel_topic, map_frame, base_link_frame;
+	 	std::string bot_model_name, bot_cmd_vel_topic, map_frame, base_link_frame, transparent_obj_list_str;
+	 	std::vector<std::string> transparent_obj_list;
 	 	bool isBotAvailable;
 	};
 

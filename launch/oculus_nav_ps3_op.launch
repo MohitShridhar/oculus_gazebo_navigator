@@ -28,6 +28,6 @@
 
   <param name="spawn_camera" command="$(find xacro)/xacro.py $(find oculus_gazebo_navigator)/models/camera_ps3_teleop.sdf" />
 
-  <node pkg="gazebo_ros" type="spawn_model" name="oculus_gazebo_camera" args="-sdf -param spawn_camera -model camera -x $(arg spawn_pos_x) -y $(arg spawn_pos_y) -z $(arg spawn_pos_z)" respawn="false" output="screen"/>
+  <node pkg="gazebo_ros" type="spawn_model" name="oculus_gazebo_camera" args="-sdf -param spawn_camera -model camera -x $(arg spawn_pos_x) -y $(arg spawn_pos_y) -z $(arg spawn_pos_z) -wait robot0" respawn="false" output="screen"/>
 
 </launch>

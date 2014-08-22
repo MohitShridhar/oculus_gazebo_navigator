@@ -17,10 +17,11 @@ ps3_teleop:
         max_vertical_speed: 1.0
         upper_position_limit: 41.0 # Because we don't want the camera to float away into heaven.
         lower_position_limit: 2.52 # Because we don't want the camera to sink down into hell. Anyway, you are the master of this->universe. You almighty.
+        x_ray_mode_transparent_objects: "world, elevator_1" # A list of gz-models that will be rendered as transparent objects in 'X-ray Mode'
 
     robot:
-        model_name: sesto0 
-        cmd_vel_topic: sesto0/cmd_vel # can also be remapped later
+        model_name: robot0 
+        cmd_vel_topic: robot0/cmd_vel # can also be remapped later
 
         normal_linear_speed: 0.4
         normal_angular_speed: 0.785 # rad/s 

@@ -73,6 +73,8 @@ namespace gazebo
         rosNode->param<double>(param_namespace_camera_str + "max_vertical_speed" , max_vertical_speed, DEFAULT_VERTICAL_SPEED);
         rosNode->param<double>(param_namespace_camera_str + "upper_position_limit" , upper_position_limit, DEFAULT_LIMIT_UPPER_POS);
         rosNode->param<double>(param_namespace_camera_str + "lower_position_limit" , lower_position_limit, DEFAULT_LIMIT_LOWER_POS);
+        
+        rosNode->param<std::string>(param_namespace_camera_str + "x_ray_mode_transparent_objects", transparent_obj_list_str, DEFAULT_TRANSPARENT_OBJ);
     }
 
     void OculusGazeboNavigator::loadRobotSettings()
@@ -106,6 +108,7 @@ namespace gazebo
             botOffsetPose = botPtr->GetWorldPose();
         }
 
+        transparent_obj_list = parseTransparentObjStr(transparent_obj_list_str);
         ros::Rate rate(ROS_RATE);
     }
 
@@ -463,9 +466,14 @@ namespace gazebo
         isXrayVisionEnabled = !isXrayVisionEnabled;
 
         if (isXrayVisionEnabled) {
-            transport::requestNoReply(gazeboNode->GetTopicNamespace(), "set_transparent", "world");
+            for (int i=0; i<transparent_obj_list.size(); i++) {
+                transport::requestNoReply(gazeboNode->GetTopicNamespace(), "set_transparent", transparent_obj_list.at(i));
+            }
+
         } else {
-            transport::requestNoReply(gazeboNode->GetTopicNamespace(), "set_opaque", "world");
+            for (int i=0; i<transparent_obj_list.size(); i++) {
+                transport::requestNoReply(gazeboNode->GetTopicNamespace(), "set_opaque", transparent_obj_list.at(i));
+            }
         }
     }
 
@@ -529,7 +537,7 @@ namespace gazebo
         if (!isGravityEnabled && currPosition.z > upper_position_limit) {
             stabilizedPose.pos.z = upper_position_limit;
         } else if (!isCollisionEnabled && currPosition.z < lower_position_limit) {
-            stabilizedPose.pos.z = lower_position_limit;
+            stabilizedPose.pos.z = lower_position_limit + 0.3;
         }
 
         stabilizedPose.rot.x = 0.0;
@@ -571,6 +579,24 @@ namespace gazebo
 
         calibrateBot();
         ROS_INFO("Initial TF Origin pose - POS: %f %f %f ROT: %f %f %f %f", transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z(), transform.getRotation().x(), transform.getRotation().y(), transform.getRotation().z(), transform.getRotation().w());
+    }
+
+    std::vector<std::string> OculusGazeboNavigator::parseTransparentObjStr(std::string transparent_obj_str)
+    {
+      std::vector<std::string> transparent_obj_list;
+
+      // parse csv-style input (also remove whitespace):
+      std::string::iterator end_pos = std::remove(transparent_obj_str.begin(), transparent_obj_str.end(), ' ');
+      transparent_obj_str.erase(end_pos, transparent_obj_str.end());
+
+      std::istringstream ss(transparent_obj_str);
+      std::string token;
+
+      while (std::getline(ss, token, ',')) {
+        transparent_obj_list.push_back(token.c_str());
+      }
+
+      return transparent_obj_list;
     }
 
 }
