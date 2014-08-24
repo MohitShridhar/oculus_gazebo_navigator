@@ -23,8 +23,8 @@ See the [wiki](https://github.com/MohitShridhar/oculus_gazebo_navigator/wiki/1.-
 
 ### PS3 Controller
 <p align="middle">
-    ![](images/front_btns.jpg)
-    ![](images/back_btns.jpg)
+    ![front](images/front_btns.jpg)
+    ![back](images/back_btns.jpg)
 </p>
 
 ### Keyboard Op
