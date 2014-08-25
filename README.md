@@ -79,8 +79,8 @@ Credit: [Jonathan Bohren](http://wiki.ros.org/ps3joy)
 9. **Triangle Button**: toggle "IronMan" mode
 
     default - toggle gravity  
-    R1 - up booster  
-    L1 - down booster  
+    a. R1 - up booster  
+    b. L1 - down booster  
 
 10. **Square Button**: toggle "Phasing" mode
 
