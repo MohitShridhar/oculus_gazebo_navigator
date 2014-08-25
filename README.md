@@ -89,7 +89,7 @@ Although you can control the virtual-camera using your keyboard, it's recommende
 
 To start the controller:
 ```bash
-rosrun oculus_gazebo_navigator oculus_keyboard_controller
+$ rosrun oculus_gazebo_navigator oculus_keyboard_controller
 ```
 Instructions:
 ```
