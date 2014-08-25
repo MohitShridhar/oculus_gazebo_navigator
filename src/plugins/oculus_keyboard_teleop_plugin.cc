@@ -93,6 +93,7 @@ namespace gazebo
 
         	rosNode = new ros::NodeHandle("/camera_controller");
 
+            sub_twist = rosNode->subscribe<geometry_msgs::Twist>("/camera_controller/twist", 1, &OculusGazeboNavigator::ROSCallbackTwist, this);
           	updateConnection = event::Events::ConnectWorldUpdateBegin(
             boost::bind(&OculusGazeboNavigator::OnUpdate, this));
         }
@@ -127,6 +128,15 @@ namespace gazebo
         	model->SetWorldPose(stabilizedPose);    
         }
 
+        void ROSCallbackTwist(const geometry_msgs::Twist::ConstPtr& msg)
+        {
+            // Movements constricted to z plane:
+            cmd_linear_vel.x = msg->linear.x;
+            cmd_linear_vel.y = msg->linear.y;
+
+            cmd_angular_vel.z = msg->angular.z;
+        }
+
     private:
 
         physics::ModelPtr model;
@@ -134,6 +144,7 @@ namespace gazebo
         rendering::OculusCameraPtr oculusCamera;
 
         ros::NodeHandle* rosNode;
+        ros::Subscriber sub_twist;
         transport::SubscriberPtr hmd_orientation_sub;
 
         math::Vector3 cmd_linear_vel, cmd_angular_vel;
