@@ -30,11 +30,12 @@ See the [wiki](https://github.com/MohitShridhar/oculus_gazebo_navigator/wiki/1.-
 
 Credit: [Jonathan Bohren](http://wiki.ros.org/ps3joy)
 
-+ **Select Button**: robot mode control
+- **Select Button**: robot mode control
 
 	default - toggle autonomous navigation mode
 	a. Hold L2 - toggle isolated-bot control mode
     b. Hold R2 - toggle mirror-bot mode
+    
 1. **Left Joystick**: virtual-camera maneuver
 	
     *Normal-bot control:*
