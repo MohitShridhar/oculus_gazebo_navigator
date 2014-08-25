@@ -23,7 +23,7 @@ See the [wiki](https://github.com/MohitShridhar/oculus_gazebo_navigator/wiki/1.-
 
 ### PS3 Controller
 <p align="middle">
-![front](images/front_btns.jpg)
+![front][images/front_btns.jpg]
 </p>
 
 Credit: [Jonathan Bohren](http://wiki.ros.org/ps3joy)
