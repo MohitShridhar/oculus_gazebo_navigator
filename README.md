@@ -23,9 +23,8 @@ See the [wiki](https://github.com/MohitShridhar/oculus_gazebo_navigator/wiki/1.-
 
 ### PS3 Controller
 
-Spawn Navigator:
+Spawn Navigator (Empty world):
 ```bash
-$ rosrun osx_joystick joystick --num 0 --hz 25
 $ roslaunch oculus_gazebo_navigator example_oculus_ps3.launch
 ```
 
