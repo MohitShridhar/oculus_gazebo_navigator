@@ -13,7 +13,7 @@ One of the highlights of the [Gazebo 4.0.0](http://gazebosim.org/blog/gazebo4) r
 
 **Custom Requirements:** [Gazebo 4.0.0](https://bitbucket.org/TihomRis/gazebo), [oculussdk](https://github.com/MohitShridhar/oculussdk)
 
-**Other Requirements:** [ps3joy](http://wiki.ros.org/ps3joy) (Ubuntu) or [osx_joystick](https://github.com/walchko/osx_joystick) (OS X)
+**Other Requirements:** [ps3joy](http://wiki.ros.org/ps3joy) (Ubuntu) or [osx_joystick](https://github.com/walchko/osx_joystick) (OSX)
 
 ## Installation & Setup
 
@@ -22,6 +22,12 @@ See the [wiki](https://github.com/MohitShridhar/oculus_gazebo_navigator/wiki/1.-
 ## Controls
 
 ### PS3 Controller
+
+Spawn Navigator:
+```bash
+$ rosrun osx_joystick joystick --num 0 --hz 25
+$ roslaunch oculus_gazebo_navigator example_oculus_ps3.launch
+```
 
 <p align="center">
     <img style="" src="images/front_btns.jpg" />
@@ -34,7 +40,7 @@ Credit: [Jonathan Bohren](http://wiki.ros.org/ps3joy)
 
 	default - toggle autonomous navigation mode  
 	a. Hold L2 - toggle isolated-bot control mode  
-    b. Hold R2 - toggle mirror-bot mode  
+    b. Hold R2 - toggle mirror-bot mode (playback rosbag data)  
     
 1. **Left Joystick**: virtual-camera maneuver
 	
@@ -85,7 +91,7 @@ Credit: [Jonathan Bohren](http://wiki.ros.org/ps3joy)
 10. **Square Button**: toggle "Phasing" mode
 
 ### Keyboard Op
-Although you can control the virtual-camera using your keyboard, it's recommended that you use a PS3 controller to attain a more immersive experience. Also see [issue #2](/../../issues/2).
+Although you can control the virtual-camera using your keyboard, it's recommended that you use a PS3 controller for a more immersive experience. Also see [issue #2](/../../issues/2).
 
 To start the controller:
 ```bash
