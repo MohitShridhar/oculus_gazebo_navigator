@@ -8,6 +8,9 @@ Oculus-Rift Gazebo Navigator
 
 One of the highlights of the [Gazebo 4.0.0](http://gazebosim.org/blog/gazebo4) release is the added support for the trending VR platform: Oculus-Rift. This navigator is a simple tool that exploits the capabilities of the simulation environment's physics-engine to provide you with the ultimate virtual-reality experience in Gazebo. So simulation will no longer be just a part of development, but instead act as a new medium to demostrate your product to clients in its work environment (in the glory of full-scale).
 
+Oculus-Rift Gazebo Navigator was featured on Gazebo's (Open Source Robotics Foundation) [blog](http://gazebosim.org/blog/gazeb_navigator)     
+Checkout the real AGV: [SESTO](https://www.youtube.com/watch?v=fd4DJ9VDrbI)  
+
 ## Dependencies & Prerequisites
 **Core**: [ROS Hydro](http://wiki.ros.org/hydro), [Catkin](http://wiki.ros.org/catkin): see [package.xml](package.xml)
 
